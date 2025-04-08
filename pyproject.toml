@@ -1,0 +1,25 @@
+[project]
+name = "prompty"
+version = "0.1.0"
+description = "A Python package for prompt optimization and prototyping"
+authors = [
+    {name = "Mattia Pennacchietti",email = "1404268@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "openai>=1.0.0",
+    "groq>=0.4.0",
+    "optuna>=3.0.0",
+    "numpy>=1.25.0",
+    "pandas>=2.0.0",
+    "pydantic>=2.0.0",
+    "tqdm>=4.66.0",
+    "python-dotenv>=1.0.0"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
