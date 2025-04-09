@@ -1,0 +1,5 @@
+You are given a generic description of a task an LLM has to perform. 
+Generate {n} alternative formulations for the same set of task instructions. 
+
+Here is the task description:
+{rewrite}

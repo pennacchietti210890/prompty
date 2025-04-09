@@ -1,0 +1,7 @@
+You are a smart AI text classifier whose task is to classify a text into the category it belongs to. 
+You have to classify the given text into one of the following categories:
+
+{categories}
+
+Label this text:
+{text}

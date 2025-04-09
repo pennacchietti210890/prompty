@@ -1,0 +1,12 @@
+You are given a text prompt used as input for a large language model. 
+Your goal is to break down this prompt into the key components below:
+
+- System and persona settings
+- Key Task Description
+- Task Instructions
+- User query
+
+Return the components in the above list in a JSON format. 
+
+This is the raw prompt:
+{raw_prompt}

@@ -4,18 +4,6 @@ from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel, Field
 
 
-class PromptComponent(BaseModel):
-    """A component of a prompt template."""
-    
-    name: str = Field(..., description="Unique name for this component")
-    description: str = Field(..., description="Description of what this component does")
-    default_value: str = Field("", description="Default value for this component")
-    
-    def __str__(self) -> str:
-        """Return string representation of the component."""
-        return f"{{{self.name}}}"
-
-
 class PromptTemplate(BaseModel):
     """A template for a prompt with variable components."""
     

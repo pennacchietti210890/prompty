@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from prompty.llm import OpenAIProvider
 from prompty.prompt_templates import TemplateManager
 from prompty.optimize import DatasetEvaluator, ObjectiveFunction, PromptOptimizer
-
+from datasets import load_dataset
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,6 +21,41 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 async def main():
     """Run a simple prompt optimization example."""
     
+    # Load test dataset - AG News for text classification
+    ag_news_dataset=load_dataset("ag_news")
+    label_names = ag_news_dataset["train"].features["label"].names
+
+    # Convert HF dataset to pandas dataframe
+    df_train = ag_news_dataset["train"].to_pandas()
+    df_test = ag_news_dataset["test"].to_pandas()
+
+    # Optional: map numeric labels to strings
+    df_train["label_text"] = df_train["label"].apply(lambda x: label_names[x])
+    df_test["label_text"] = df_test["label"].apply(lambda x: label_names[x])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # Create an OpenAI provider
     llm = OpenAIProvider(api_key=OPENAI_API_KEY)
     
