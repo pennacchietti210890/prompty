@@ -9,15 +9,17 @@ from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCan
 
 logger = logging.getLogger(__name__)
 
+
 class SearchSpace(BaseModel):
     """Search space for prompt optimization."""
 
     component_candidates: Dict[str, PromptComponentCandidate]
     other_params: Dict[str, Any]
 
+
 class Optimizer:
     """Prompt Optimization base class."""
-    
+
     def __init__(
         self,
         evaluator: Evaluator,
@@ -31,7 +33,7 @@ class Optimizer:
         direction: str = "maximize",
     ):
         """Initialize the objective function.
-        
+
         Args:
             evaluator: Evaluator to use for scoring prompts
             search_space: List of Prompt Component Candidates and other paramters sto optimise across
@@ -57,27 +59,32 @@ class Optimizer:
         trial_suggestions_idx = {}
         trial_suggestions_comp = {}
         for component in self.search_space.component_candidates:
-            trial_suggestions_idx[component] = trial.suggest_int(component, 0, len(self.search_space.component_candidates[component].candidates) - 1)
-            trial_suggestions_comp[component] = self.search_space.component_candidates[component].candidates[trial_suggestions_idx[component]]
-        
+            trial_suggestions_idx[component] = trial.suggest_int(
+                component,
+                0,
+                len(self.search_space.component_candidates[component].candidates) - 1,
+            )
+            trial_suggestions_comp[component] = self.search_space.component_candidates[
+                component
+            ].candidates[trial_suggestions_idx[component]]
+
         prompt = ""
         for component in trial_suggestions_comp:
             prompt += f"{trial_suggestions_comp[component]}\n\n"
 
         # LLM scoring
-        score = await evaluate_prompt(prompt, llm, test_sample)
+        score = await self.evaluator.evaluate(prompt)
         return score
-
 
     async def optimize(self, n_trials: int = 100) -> float:
         """Run Optuna optimization."""
         self.study = optuna.create_study(direction=self.direction)
         await self.study.optimize(self._objective_wrapper, n_trials=n_trials)
-        
+
         # Get the best parameters
         best_params = self.study.best_params
         best_value = self.study.best_value
-        
+
         # Return the results
         return {
             "best_params": best_params,
@@ -86,13 +93,13 @@ class Optimizer:
 
     def save_results(self, file_path: str) -> None:
         """Save the optimization results to a JSON file.
-        
+
         Args:
             file_path: Path to save the results to
         """
-        if not hasattr(self.study, "best_params"):
+        if not self.study or not hasattr(self.study, "best_params"):
             raise ValueError("No optimization results to save. Run optimize() first.")
-            
+
         results = {
             "best_params": self.study.best_params,
             "best_value": self.study.best_value,
@@ -100,8 +107,8 @@ class Optimizer:
             "template": self.objective.template.to_dict(),
             "n_trials": self.n_trials,
             "study_name": self.study_name,
-            "direction": self.direction
+            "direction": self.direction,
         }
-        
+
         with open(file_path, "w") as f:
             json.dump(results, f, indent=2)
