@@ -1,5 +1,5 @@
 <h1>
-  <img src="assets/icon.svg" width="32" alt="Logo" style="vertical-align: middle; margin-right: 10px;"/>
+  <img src="assets/icon.png" width="32" alt="Logo" style="vertical-align: middle; margin-right: 10px;"/>
   PROMPTy
 </h1>
 
