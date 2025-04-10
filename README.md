@@ -1,5 +1,7 @@
-<img src="images/prompty_icon.png" width="32" alt="Logo" style="vertical-align: middle;"/>  
-# PROMPTy
+<h1>
+  <img src="assets/icon.svg" width="32" alt="Logo" style="vertical-align: middle; margin-right: 10px;"/>
+  PROMPTy
+</h1>
 
 A Python package for prompt optimization and prototyping.
 
