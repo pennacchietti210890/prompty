@@ -6,10 +6,11 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 import logging
+from datasets import load_dataset
 
-from prompty.llm import OpenAIProvider
-from prompty.prompt_templates import TemplateManager
-from prompty.optimize import DatasetEvaluator, ObjectiveFunction, PromptOptimizer
+from prompty.prompt_components.schemas import PromptTemplate, NLPTask
+from prompty.optimize.evaluator import DatasetEvaluator
+from prompty.optimize.optimizer import Optimizer
 from datasets import load_dataset
 
 from langchain.chat_models import init_chat_model
@@ -27,7 +28,7 @@ async def main():
 
     # Initialize LLM
     llm = init_chat_model("gpt-4o-mini", model_provider="openai")
-    
+
     # Load test dataset - AG News for text classification
     ag_news_dataset = load_dataset("ag_news")
     label_names = ag_news_dataset["train"].features["label"].names
@@ -50,15 +51,18 @@ async def main():
     # 4: Science
 
     # Initialize evaluator
-    evaluator = DatasetEvaluator(llm=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
 
     # get prompt template for text classification 
     logger.info("Loading text classification template...")
     text_classification_prompt_template = PromptTemplate(task=NLPTask.TEXT_CLASSIFICATION)
+    prompt_template = text_classification_prompt_template.load_template_from_task()
 
+    logger.info("Template:")
+    logger.info(prompt_template)
 
     logger.info("Checking baseline accuracy on test set....")
-    baseline_score = await evaluator.evaluate(text_classification_prompt_template.template)
+    baseline_score = await evaluator.evaluate(prompt_template)
     logger.info(f"Baseline Score: {baseline_score}")
     
     # logger.info("Starting Optimization...")

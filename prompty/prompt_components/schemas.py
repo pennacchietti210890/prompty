@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, TypedDict
+from typing import List, Optional, TypedDict, Dict, Any
 from enum import Enum
+import logging
+import os 
+
+logger = logging.getLogger(__name__)
 
 class PromptComponents(BaseModel):
     """Key components making up a prompt."""
@@ -43,8 +47,8 @@ class PromptTemplate(BaseModel):
     """A template for a prompt with variable components."""
 
     task: NLPTask = Field(..., description="NLP Task to be corresponding to the template")
-    components: Optional[List[PromptComponent]] = Field(
-        None, default_factory=list, description="List of components in this template"
+    components: Optional[List[PromptComponents]] = Field(
+        None, description="List of components in this template"
     )
     name: Optional[str] = Field(None, description="Optional name for the template")
     description: Optional[str] = Field(
@@ -57,13 +61,20 @@ class PromptTemplate(BaseModel):
         Returns:
             The template
         """
-        template_path = f"templates/tasks/{NLPTask.self.task}.txt"
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "prompt_components",
+            "templates",
+            "tasks",
+            f"{self.task.value}.txt"
+        )
         logger.info(f"Loading template from {template_path}")
         with open(template_path, "r", encoding="utf-8") as file:
             content = file.read()
-        self.template = content
+        
+        return content
 
-    def load_template_from_components(self, components: List[PromptComponent]) -> str:
+    def load_template_from_components(self, components: List[PromptComponents]) -> str:
         """Load the template given a list of Prompt Components.
 
         Args:

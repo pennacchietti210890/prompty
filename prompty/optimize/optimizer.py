@@ -6,6 +6,9 @@ import logging
 from pydantic import BaseModel
 from prompty.optimize.evaluator import Evaluator
 from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCandidates
+from langchain_core.language_models.chat_models import BaseChatModel
+import pandas as pd
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +16,7 @@ logger = logging.getLogger(__name__)
 class SearchSpace(BaseModel):
     """Search space for prompt optimization."""
 
-    component_candidates: Dict[str, PromptComponentCandidate]
+    component_candidates: Dict[str, PromptComponentCandidates]
     other_params: Dict[str, Any]
 
 

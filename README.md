@@ -7,6 +7,10 @@ A Python package for prompt optimization and prototyping.
 
 PROMPTy allows users to quickly optimize or prototype prompts for large language models. It provides tools for templating prompts using LLMs and optimizing them using Bayesian optimization.
 
+<h1>
+  <img src="assets/prompty_flow.png"/>
+</h1>
+
 ## Features
 
 - **Prompt Templating**: Break down prompts into reusable components using LLMs
