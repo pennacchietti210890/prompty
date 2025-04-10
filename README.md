@@ -1,3 +1,4 @@
+<img src="images/prompty_icon.png" width="32" alt="Logo" style="vertical-align: middle;"/>  
 # PROMPTy
 
 A Python package for prompt optimization and prototyping.

@@ -17,7 +17,6 @@ load_dotenv()
 # Get API key from environment
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-
 async def main():
     """Run a simple prompt optimization example."""
     
@@ -33,7 +32,21 @@ async def main():
     df_train["label_text"] = df_train["label"].apply(lambda x: label_names[x])
     df_test["label_text"] = df_test["label"].apply(lambda x: label_names[x])
 
+    train_sample = df_train.sample(20)
+    test_sample = df_test.sample(20)
 
+    # categories for the ag news dataset are: 
+    # 1: World
+    # 2: Sports
+    # 3: Business
+    # 4: Science
+
+    # Create a template manager
+    manager = TemplateManager(llm_provider=llm)
+
+    # Create a template from a prompt
+    print("Creating template...")
+    template = await manager.create_template(
 
 
 

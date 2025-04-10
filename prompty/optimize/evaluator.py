@@ -7,8 +7,7 @@ from typing import Dict, List, Optional, Any, Union, Callable
 import pandas as pd
 from tqdm import tqdm
 
-from ..llm import LLMProvider
-from ..prompt_templates import PromptTemplate
+from langchain_core.language_models.chat_models import BaseChatModel
 
 
 class Evaluator(ABC):
@@ -32,7 +31,7 @@ class DatasetEvaluator(Evaluator):
     
     def __init__(
         self,
-        llm_provider: LLMProvider,
+        llm_provider: BaseChatModel,
         dataset: Union[str, pd.DataFrame],
         input_column: str,
         target_column: str,
@@ -42,7 +41,7 @@ class DatasetEvaluator(Evaluator):
         """Initialize the dataset evaluator.
         
         Args:
-            llm_provider: LLM provider to use for generating responses
+            llm_provider: LLM provider to use for generating responses, of BaseChatModel type from langchain_core
             dataset: Dataset to evaluate on (path to CSV or DataFrame)
             input_column: Column name for inputs
             target_column: Column name for target outputs
@@ -94,19 +93,3 @@ class DatasetEvaluator(Evaluator):
         
         # Return the average score
         return sum(scores) / len(scores) if scores else 0.0
-    
-    async def evaluate_template(self, template: PromptTemplate, **kwargs) -> float:
-        """Evaluate a prompt template on the dataset.
-        
-        Args:
-            template: The prompt template to evaluate
-            **kwargs: Values for template components
-            
-        Returns:
-            Average score across the dataset (higher is better)
-        """
-        # Fill the template with provided values
-        prompt = template.fill(**kwargs)
-        
-        # Evaluate the filled prompt
-        return await self.evaluate(prompt) 
