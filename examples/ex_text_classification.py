@@ -78,7 +78,7 @@ async def main():
     logger.info(prompt_template)
     
     logger.info("Checking baseline accuracy on test set....")
-    baseline_score, prompt = await evaluator.evaluate(prompt_template)
+    baseline_score = await evaluator.evaluate(prompt_template)
     logger.info(f"Baseline Score: {baseline_score}")
     
     logger.info("Starting Optimization...")
@@ -95,8 +95,8 @@ async def main():
         other_params={}
     )
     
-    optimizer = Optimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
-    results = await optimizer.optimize()
+    optimizer = Optimizer(evaluator=evaluator, search_space=search_space, n_trials=10)
+    results = optimizer.optimize()
     
     logger.info("Found best prompt configuration:")
     logger.info(f"Best Parameters: {results['best_params']}")

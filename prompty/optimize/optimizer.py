@@ -29,7 +29,7 @@ class Optimizer:
         self,
         evaluator: Evaluator,
         search_space: SearchSpace,
-        n_trials: int = 100,
+        n_trials: int = 10,
         timeout: int = 3600,
         study_name: str = "prompt_optimization",
         direction: str = "maximize",
@@ -73,15 +73,16 @@ class Optimizer:
 
         # LLM scoring
         score = await self.evaluator.evaluate(prompt)
+        
         return score
 
     def sync_wrapper(self, trial):
         return asyncio.run(self._objective_wrapper(trial))
 
-    def optimize(self, n_trials: int = 100) -> float:
+    def optimize(self) -> float:
         """Run Optuna optimization."""
         self.study = optuna.create_study(direction=self.direction)
-        self.study.optimize(self.sync_wrapper, n_trials=n_trials)
+        self.study.optimize(self.sync_wrapper, n_trials=self.n_trials)
 
         # Get the best parameters
         best_params = self.study.best_params

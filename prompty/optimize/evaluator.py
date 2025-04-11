@@ -96,4 +96,4 @@ class DatasetEvaluator(Evaluator):
             scores.append(score)
 
         # Return the average score
-        return sum(scores) / len(scores) if scores else 0.0, formatted_prompt
+        return sum(scores) / len(scores) if scores else 0.0
