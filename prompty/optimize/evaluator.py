@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from langchain_core.language_models.chat_models import BaseChatModel
-
+from string import Template
 
 class Evaluator(ABC):
     """Base abstract class for prompt evaluators."""
@@ -36,7 +36,7 @@ class DatasetEvaluator(Evaluator):
         input_column: str,
         target_column: str,
         scoring_function: Callable[[str, str], float] = lambda r, t: float(
-            r.strip() == t.strip()
+            r.content.strip() == t.strip()
         ),
         max_samples: Optional[int] = None,
     ):
@@ -86,14 +86,14 @@ class DatasetEvaluator(Evaluator):
             target = str(row[self.target_column])
 
             # Format the prompt with the input
-            formatted_prompt = prompt.format(input=input_text)
+            formatted_prompt = Template(prompt).substitute(text=input_text)
 
             # Get the model's response
-            response = await self.llm_provider.call(formatted_prompt)
+            response = await self.llm_provider.ainvoke(formatted_prompt)
 
             # Score the response
             score = self.scoring_function(response, target)
             scores.append(score)
 
         # Return the average score
-        return sum(scores) / len(scores) if scores else 0.0
+        return sum(scores) / len(scores) if scores else 0.0, formatted_prompt

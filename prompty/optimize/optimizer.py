@@ -9,9 +9,11 @@ from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCan
 from langchain_core.language_models.chat_models import BaseChatModel
 import pandas as pd
 import json
+import asyncio
+import nest_asyncio
 
 logger = logging.getLogger(__name__)
-
+nest_asyncio.apply()
 
 class SearchSpace(BaseModel):
     """Search space for prompt optimization."""
@@ -27,9 +29,6 @@ class Optimizer:
         self,
         evaluator: Evaluator,
         search_space: SearchSpace,
-        prompt_template: PromptTemplate,
-        llm: BaseChatModel,
-        test_sample: pd.DataFrame,
         n_trials: int = 100,
         timeout: int = 3600,
         study_name: str = "prompt_optimization",
@@ -40,9 +39,6 @@ class Optimizer:
         Args:
             evaluator: Evaluator to use for scoring prompts
             search_space: List of Prompt Component Candidates and other paramters sto optimise across
-            prompt_template: Prompt Template to optimize
-            llm: LLM to use for scoring prompts
-            test_sample: Test sample to use for scoring prompts
             n_trials: Number of trials to run
             timeout: Timeout for the optimization
             study_name: Name of the study
@@ -79,10 +75,13 @@ class Optimizer:
         score = await self.evaluator.evaluate(prompt)
         return score
 
-    async def optimize(self, n_trials: int = 100) -> float:
+    def sync_wrapper(self, trial):
+        return asyncio.run(self._objective_wrapper(trial))
+
+    def optimize(self, n_trials: int = 100) -> float:
         """Run Optuna optimization."""
         self.study = optuna.create_study(direction=self.direction)
-        await self.study.optimize(self._objective_wrapper, n_trials=n_trials)
+        self.study.optimize(self.sync_wrapper, n_trials=n_trials)
 
         # Get the best parameters
         best_params = self.study.best_params
@@ -106,8 +105,6 @@ class Optimizer:
         results = {
             "best_params": self.study.best_params,
             "best_value": self.study.best_value,
-            "best_prompt": self.objective.template.fill(**self.study.best_params),
-            "template": self.objective.template.to_dict(),
             "n_trials": self.n_trials,
             "study_name": self.study_name,
             "direction": self.direction,

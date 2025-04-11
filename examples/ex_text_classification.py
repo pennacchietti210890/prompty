@@ -9,19 +9,29 @@ import logging
 from datasets import load_dataset
 
 from prompty.prompt_components.schemas import PromptTemplate, NLPTask
+from prompty.search_space.generate_prompt import PromptGenerator
 from prompty.optimize.evaluator import DatasetEvaluator
-from prompty.optimize.optimizer import Optimizer
+from prompty.optimize.optimizer import Optimizer, SearchSpace
 from datasets import load_dataset
 
 from langchain.chat_models import init_chat_model
+from string import Template
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()  # Output to console
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Get API key from environment
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-logger = logging.getLogger(__name__)
 
 async def main():
     """Run a simple prompt optimization example."""
@@ -41,14 +51,20 @@ async def main():
     df_train["label_text"] = df_train["label"].apply(lambda x: label_names[x])
     df_test["label_text"] = df_test["label"].apply(lambda x: label_names[x])
 
-    train_sample = df_train.sample(20)
-    test_sample = df_test.sample(20)
+    train_sample = df_train.sample(2)
+    test_sample = df_test.sample(2)
 
     # categories for the ag news dataset are:
     # 1: World
     # 2: Sports
     # 3: Business
     # 4: Science
+    labels_names = """
+        - World
+        - Sports
+        - Business
+        - Sci/Tech
+    """
 
     # Initialize evaluator
     evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
@@ -56,30 +72,39 @@ async def main():
     # get prompt template for text classification 
     logger.info("Loading text classification template...")
     text_classification_prompt_template = PromptTemplate(task=NLPTask.TEXT_CLASSIFICATION)
-    prompt_template = text_classification_prompt_template.load_template_from_task()
+    prompt_template = Template(text_classification_prompt_template.load_template_from_task()).safe_substitute(categories=labels_names)
 
     logger.info("Template:")
     logger.info(prompt_template)
-
+    
     logger.info("Checking baseline accuracy on test set....")
-    baseline_score = await evaluator.evaluate(prompt_template)
+    baseline_score, prompt = await evaluator.evaluate(prompt_template)
     logger.info(f"Baseline Score: {baseline_score}")
     
-    # logger.info("Starting Optimization...")
-    # logger.info("Creating Prompt Component candidates...")
-    # generator = PromptGenerator(llm=llm, base_prompt=raw_text_classifier_prompt)
-    # generator.get_candidate_components()
+    logger.info("Starting Optimization...")
+    logger.info("Creating Prompt Component candidates...")
+    generator = PromptGenerator(llm=llm, base_prompt=prompt_template)
+    generator.get_candidate_components()
     
-    # logger.info("Running Bayesina Optimization via Optuna...")
+    logger.info("Search space: candidate generation complete...")
+    logger.info("Running Bayesian Optimization via Optuna...")
     
-    # objective = ObjectiveFunction(evaluator=evaluator, template=text_classification_prompt_template)
-    # optimizer = PromptOptimizer(objective=objective, n_trials=10)
-    # results = await optimizer.optimize()
+    # Create search space from candidates
+    search_space = SearchSpace(
+        component_candidates=generator.candidates,
+        other_params={}
+    )
     
-    # logger.info("Found best prompt configuration:")
-    # best = study.best_trial
-    # logger.info(f"Best Parameters: {best.params}")
-    # logger.info(f"Best Score: {best.value}")
+    optimizer = Optimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
+    results = await optimizer.optimize()
+    
+    logger.info("Found best prompt configuration:")
+    logger.info(f"Best Parameters: {results['best_params']}")
+    logger.info(f"Best Score: {results['best_value']}")
+    
+    # Save the results
+    optimizer.save_results("optimization_results.json")
+    logger.info("Results saved to optimization_results.json")
 
 
 if __name__ == "__main__":
