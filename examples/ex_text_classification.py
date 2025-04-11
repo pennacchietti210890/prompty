@@ -96,7 +96,7 @@ async def main():
     )
     
     optimizer = Optimizer(evaluator=evaluator, search_space=search_space, n_trials=10)
-    results = optimizer.optimize()
+    results = await optimizer.optimize()
     
     logger.info("Found best prompt configuration:")
     logger.info(f"Best Parameters: {results['best_params']}")

@@ -10,10 +10,8 @@ from langchain_core.language_models.chat_models import BaseChatModel
 import pandas as pd
 import json
 import asyncio
-import nest_asyncio
 
 logger = logging.getLogger(__name__)
-nest_asyncio.apply()
 
 class SearchSpace(BaseModel):
     """Search space for prompt optimization."""
@@ -76,13 +74,14 @@ class Optimizer:
         
         return score
 
-    def sync_wrapper(self, trial):
-        return asyncio.run(self._objective_wrapper(trial))
 
-    def optimize(self) -> float:
+    async def optimize(self) -> float:
         """Run Optuna optimization."""
         self.study = optuna.create_study(direction=self.direction)
-        self.study.optimize(self.sync_wrapper, n_trials=self.n_trials)
+        for _ in range(self.n_trials):
+            trial = self.study.ask()
+            result = await self._objective_wrapper(trial)
+            self.study.tell(trial, result)
 
         # Get the best parameters
         best_params = self.study.best_params
