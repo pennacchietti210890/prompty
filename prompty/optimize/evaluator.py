@@ -8,7 +8,9 @@ import pandas as pd
 from tqdm import tqdm
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from string import Template
+from jinja2 import Environment, Template, DebugUndefined
+
+env = Environment(undefined=DebugUndefined)
 
 class Evaluator(ABC):
     """Base abstract class for prompt evaluators."""
@@ -84,16 +86,18 @@ class DatasetEvaluator(Evaluator):
             # Get input and target from the dataset
             input_text = str(row[self.input_column])
             target = str(row[self.target_column])
-
+            
             # Format the prompt with the input
-            formatted_prompt = Template(prompt).substitute(text=input_text)
-
+            formatted_prompt = env.from_string(prompt).render(text=input_text)
+            
             # Get the model's response
             response = await self.llm_provider.ainvoke(formatted_prompt)
-
+            print(f"LLM Response: {response.content.strip()} vs. Target: {target.strip()}") 
             # Score the response
             score = self.scoring_function(response, target)
             scores.append(score)
 
+        print(formatted_prompt)
+        print(f"Scores: {sum(scores) / len(scores)}")
         # Return the average score
         return sum(scores) / len(scores) if scores else 0.0

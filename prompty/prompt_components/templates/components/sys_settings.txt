@@ -1,5 +1,5 @@
 You are given a system instruction for an LLM. 
-Generate {n} alternative formulations for the same system instructions. 
+Generate {{ n }} alternative formulations for the same system instructions. 
 
 Here is the system settings:
-{rewrite}
+{{ rewrite }}

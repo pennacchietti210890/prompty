@@ -8,14 +8,17 @@ from dotenv import load_dotenv
 import logging
 from datasets import load_dataset
 
-from prompty.prompt_components.schemas import PromptTemplate, NLPTask
+from prompty.prompt_components.schemas import PromptTemplate, NLPTask, PromptComponentCandidates
 from prompty.search_space.generate_prompt import PromptGenerator
-from prompty.optimize.evaluator import DatasetEvaluator
+from prompty.search_space.generate_training import BestShotsSelector
+from prompty.optimize.evaluator import DatasetEvaluator 
 from prompty.optimize.optimizer import Optimizer, SearchSpace
 from datasets import load_dataset
 
 from langchain.chat_models import init_chat_model
-from string import Template
+from jinja2 import Environment, Template, DebugUndefined
+
+env = Environment(undefined=DebugUndefined)
 
 # Configure logging
 logging.basicConfig(
@@ -51,8 +54,8 @@ async def main():
     df_train["label_text"] = df_train["label"].apply(lambda x: label_names[x])
     df_test["label_text"] = df_test["label"].apply(lambda x: label_names[x])
 
-    train_sample = df_train.sample(2)
-    test_sample = df_test.sample(2)
+    train_sample = df_train.sample(10)
+    test_sample = df_test.sample(20)
 
     # categories for the ag news dataset are:
     # 1: World
@@ -72,7 +75,7 @@ async def main():
     # get prompt template for text classification 
     logger.info("Loading text classification template...")
     text_classification_prompt_template = PromptTemplate(task=NLPTask.TEXT_CLASSIFICATION)
-    prompt_template = Template(text_classification_prompt_template.load_template_from_task()).safe_substitute(categories=labels_names)
+    prompt_template = env.from_string(text_classification_prompt_template.load_template_from_task()).render(categories=labels_names)
 
     logger.info("Template:")
     logger.info(prompt_template)
@@ -83,19 +86,38 @@ async def main():
     
     logger.info("Starting Optimization...")
     logger.info("Creating Prompt Component candidates...")
+    
     generator = PromptGenerator(llm=llm, base_prompt=prompt_template)
     generator.get_candidate_components()
     
+    logger.info("Extracting best training examples...")
+    examples=list(train_sample["text"])
+    best_shots_selector = BestShotsSelector(examples)
+    diverse_shots = best_shots_selector.min_max_diverse_subset(2)
+    
+
+    logger.info("Constructing input/output pairs for best shots...")
+    labels=list(train_sample["label_text"])
+    labels = [labels[examples.index(shot)] for shot in diverse_shots]
+    
+    examples_str = "\n\n".join([f"{example}. \n{label}" for example, label in zip(diverse_shots, labels)])
+
+    shots_prompt = f"Here are some examples of similar text to the one you have to classify, with their corresponding labels:\n{examples_str}"
+    
+    shots_prompt_candidates = PromptComponentCandidates(candidates=[shots_prompt])
+    final_candidates = generator.candidates
+    final_candidates["training_examples"] = shots_prompt_candidates
+
     logger.info("Search space: candidate generation complete...")
     logger.info("Running Bayesian Optimization via Optuna...")
     
     # Create search space from candidates
     search_space = SearchSpace(
-        component_candidates=generator.candidates,
+        component_candidates=final_candidates,
         other_params={}
     )
     
-    optimizer = Optimizer(evaluator=evaluator, search_space=search_space, n_trials=10)
+    optimizer = Optimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
     results = await optimizer.optimize()
     
     logger.info("Found best prompt configuration:")

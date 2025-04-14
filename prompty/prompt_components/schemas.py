@@ -18,7 +18,7 @@ class PromptComponents(BaseModel):
     task_instructions: str = Field(
         description="The instructions that need to be followed by the LLM in order to complete the task. If the instructions contain a bullet point or numbered list, return the list as it is. "
     )
-    training_examples: Optional[List[str]] = Field(
+    training_examples: Optional[str] = Field(
         description="A list of training examples with input/output pair demonstrations to guide the LLM towards successfully achieving the task"
     )
     user_query: str = Field(description="The final query the user asks")
@@ -46,7 +46,7 @@ class NLPTask(Enum):
 class PromptTemplate(BaseModel):
     """A template for a prompt with variable components."""
 
-    task: NLPTask = Field(..., description="NLP Task to be corresponding to the template")
+    task: Optional[NLPTask] = Field(None, description="NLP Task to be corresponding to the template")
     components: Optional[List[PromptComponents]] = Field(
         None, description="List of components in this template"
     )
@@ -83,11 +83,13 @@ class PromptTemplate(BaseModel):
         Returns:
             The filled template prompt as a string
         """
-        self.template = ""
-        for component in self.components:
-            self.template += f"{component}\n\n"
+        content = ""
+        print(components)
+        for component in components:
+            content += f"**{component[0]}**\n"
+            content += f"{component[1]}\n\n"
 
-        return self.template
+        return content
 
     def fill(self, **kwargs) -> str:
         """Fill the template with provided values.

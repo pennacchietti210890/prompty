@@ -5,7 +5,7 @@ import optuna
 import logging
 from pydantic import BaseModel
 from prompty.optimize.evaluator import Evaluator
-from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCandidates
+from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCandidates, PromptComponents
 from langchain_core.language_models.chat_models import BaseChatModel
 import pandas as pd
 import json
@@ -27,7 +27,7 @@ class Optimizer:
         self,
         evaluator: Evaluator,
         search_space: SearchSpace,
-        n_trials: int = 10,
+        n_trials: int = 3,
         timeout: int = 3600,
         study_name: str = "prompt_optimization",
         direction: str = "maximize",
@@ -65,9 +65,9 @@ class Optimizer:
                 component
             ].candidates[trial_suggestions_idx[component]]
 
-        prompt = ""
-        for component in trial_suggestions_comp:
-            prompt += f"{trial_suggestions_comp[component]}\n\n"
+        prompt_template = PromptTemplate()
+        components = PromptComponents(**trial_suggestions_comp)
+        prompt = prompt_template.load_template_from_components(components)
 
         # LLM scoring
         score = await self.evaluator.evaluate(prompt)
@@ -102,8 +102,14 @@ class Optimizer:
         if not self.study or not hasattr(self.study, "best_params"):
             raise ValueError("No optimization results to save. Run optimize() first.")
 
+        component_params = {
+            "sys_settings": self.search_space.component_candidates["sys_settings"].candidates[self.study.best_params["sys_settings"]],
+            "task_description": self.search_space.component_candidates["task_description"].candidates[self.study.best_params["task_description"]],
+            "task_instructions": self.search_space.component_candidates["task_instructions"].candidates[self.study.best_params["task_instructions"]],
+            "user_query": self.search_space.component_candidates["user_query"].candidates[self.study.best_params["user_query"]],
+        }
         results = {
-            "best_params": self.study.best_params,
+            "best_params": component_params,
             "best_value": self.study.best_value,
             "n_trials": self.n_trials,
             "study_name": self.study_name,

@@ -6,6 +6,8 @@ from prompty.prompt_components.schemas import (
     PromptComponentCandidates,
 )
 import os
+from jinja2 import Environment, Template, DebugUndefined
+
 logger = logging.getLogger(__name__)
 
 class PromptGenerator:
@@ -79,7 +81,7 @@ class PromptGenerator:
         """
         structured_llm = self.llm.with_structured_output(PromptComponents)
         components = structured_llm.invoke(
-            self.components_generate_template.format(raw_prompt=self.base_prompt)
+            Template(self.components_generate_template).render(raw_prompt=self.base_prompt)
         )
         return components
 
@@ -125,16 +127,16 @@ class PromptGenerator:
             self._get_components()
 
         candidate_generation_templates = {
-            "sys_settings": self.sys_settings_generate_template.format(
+            "sys_settings": Template(self.sys_settings_generate_template).render(
                 n=num_candidates, rewrite=self._components.sys_settings
             ),
-            "task_description": self.task_description_generate_template.format(
+            "task_description": Template(self.task_description_generate_template).render(
                 n=num_candidates, rewrite=self._components.task_description
             ),  
-            "task_instructions": self.task_instructions_generate_template.format(   
+            "task_instructions": Template(self.task_instructions_generate_template).render(   
                 n=num_candidates, rewrite=self._components.task_instructions
             ),
-            "user_query": self.user_query_generate_template.format(
+            "user_query": Template(self.user_query_generate_template).render(
                 n=num_candidates, rewrite=self._components.user_query
             ),
         }

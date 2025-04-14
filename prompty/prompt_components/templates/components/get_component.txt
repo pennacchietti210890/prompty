@@ -9,4 +9,4 @@ Your goal is to break down this prompt into the key components below:
 Return the components in the above list in a JSON format. 
 
 This is the raw prompt:
-{raw_prompt}
+{{ raw_prompt }}
