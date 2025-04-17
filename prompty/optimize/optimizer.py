@@ -6,7 +6,7 @@ import logging
 from pydantic import BaseModel
 from prompty.optimize.evaluator import Evaluator
 from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCandidates, PromptComponents
-from prompty.experiment_tracking import ExperimentTracker
+from prompty.tracking.experiment_tracking import ExperimentTracker
 from langchain_core.language_models.chat_models import BaseChatModel
 import pandas as pd
 import json
