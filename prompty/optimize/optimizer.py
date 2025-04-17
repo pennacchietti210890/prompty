@@ -6,6 +6,7 @@ import logging
 from pydantic import BaseModel
 from prompty.optimize.evaluator import Evaluator
 from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCandidates, PromptComponents
+from prompty.experiment_tracking import ExperimentTracker
 from langchain_core.language_models.chat_models import BaseChatModel
 import pandas as pd
 import json
@@ -31,6 +32,7 @@ class Optimizer:
         timeout: int = 3600,
         study_name: str = "prompt_optimization",
         direction: str = "maximize",
+        experiment_tracker: Optional[ExperimentTracker] = None,
     ):
         """Initialize the objective function.
 
@@ -42,6 +44,7 @@ class Optimizer:
             study_name: Name of the study
             storage: Storage for the study
             direction: Direction of the optimization
+            experiment_tracker: Optional experiment tracker instance
         """
         self.evaluator = evaluator
         self.search_space = search_space
@@ -50,6 +53,7 @@ class Optimizer:
         self.study_name = study_name or "prompt_optimization"
         self.direction = direction
         self.study = None
+        self.experiment_tracker = experiment_tracker or ExperimentTracker()
 
     async def _objective_wrapper(self, trial: optuna.Trial) -> float:
         """Objective wrapper for optuna."""
@@ -69,29 +73,60 @@ class Optimizer:
         components = PromptComponents(**trial_suggestions_comp)
         prompt = prompt_template.load_template_from_components(components)
 
+        # Log the prompt for this trial
+        self.experiment_tracker.log_prompt(prompt, f"trial_{trial.number}")
+
         # LLM scoring
         score = await self.evaluator.evaluate(prompt)
         
+        # Log the trial parameters and score with trial-specific keys
+        trial_params = {f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_idx.items()}
+        self.experiment_tracker.log_params(trial_params)
+        self.experiment_tracker.log_metrics({"score": score}, step=trial.number)
+        
         return score
-
 
     async def optimize(self) -> float:
         """Run Optuna optimization."""
-        self.study = optuna.create_study(direction=self.direction)
-        for _ in range(self.n_trials):
-            trial = self.study.ask()
-            result = await self._objective_wrapper(trial)
-            self.study.tell(trial, result)
+        # Start a new experiment run
+        with self.experiment_tracker.start_run(
+            run_name=f"optimization_{self.study_name}",
+            tags={
+                "optimization_direction": self.direction,
+                "n_trials": str(self.n_trials),
+            }
+        ):
+            # Log the search space configuration
+            self.experiment_tracker.log_params({
+                "n_trials": self.n_trials,
+                "timeout": self.timeout,
+                "study_name": self.study_name,
+                "direction": self.direction,
+            })
 
-        # Get the best parameters
-        best_params = self.study.best_params
-        best_value = self.study.best_value
+            self.study = optuna.create_study(direction=self.direction)
+            for _ in range(self.n_trials):
+                trial = self.study.ask()
+                result = await self._objective_wrapper(trial)
+                self.study.tell(trial, result)
 
-        # Return the results
-        return {
-            "best_params": best_params,
-            "best_value": best_value,
-        }
+            # Get the best parameters
+            best_params = self.study.best_params
+            best_value = self.study.best_value
+
+            # Log the final results
+            self.experiment_tracker.log_optimization_results(
+                best_params=best_params,
+                best_value=best_value,
+                n_trials=self.n_trials,
+                study_name=self.study_name,
+            )
+
+            # Return the results
+            return {
+                "best_params": best_params,
+                "best_value": best_value,
+            }
 
     def save_results(self, file_path: str) -> None:
         """Save the optimization results to a JSON file.

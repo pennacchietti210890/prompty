@@ -53,4 +53,7 @@ logs/
 optimization_results.json
 
 # Cache
-.cache/ 
+.cache/
+
+# MLFlow runs
+mlruns/

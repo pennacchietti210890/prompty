@@ -18,6 +18,7 @@ PROMPTy allows users to quickly optimize or prototype prompts for large language
 - **Multiple LLM Providers**: Support for OpenAI, Groq, and more
 - **Dataset Evaluation**: Evaluate prompts on custom datasets
 - **Flexible Framework**: Easily extend with new providers and evaluators
+- **Experiment Tracking**: Integrated MLflow support for tracking optimization experiments
 
 ## Installation
 
@@ -102,6 +103,62 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+## Experiment Tracking with MLflow
+
+PROMPTy now includes built-in support for MLflow experiment tracking. This allows you to:
+
+- Track optimization trials and their parameters
+- Log prompts and their performance metrics
+- Compare different optimization runs
+- Visualize optimization progress
+
+### Basic Usage
+
+```python
+from prompty.experiment_tracking import ExperimentTracker
+from prompty.optimize import PromptOptimizer
+
+# Create an experiment tracker
+tracker = ExperimentTracker(
+    experiment_name="my_prompt_experiment",
+    tags={"project": "prompt_optimization"}
+)
+
+# Use the tracker with your optimizer
+optimizer = PromptOptimizer(
+    objective=objective,
+    n_trials=10,
+    experiment_tracker=tracker
+)
+
+# Run optimization - all trials will be automatically tracked
+results = await optimizer.optimize()
+```
+
+### Viewing Results
+
+After running your optimization, you can view the results using the MLflow UI:
+
+```bash
+mlflow ui
+```
+
+Then open your browser to `http://localhost:5000` to see:
+- All optimization trials
+- Parameter values for each trial
+- Performance metrics
+- Generated prompts
+- Best performing configurations
+
+### What's Tracked
+
+The experiment tracker automatically logs:
+- Optimization parameters and search space
+- Trial-specific parameters and metrics
+- Generated prompts for each trial
+- Final optimization results
+- LLM API calls and their details
 
 ## Documentation
 
