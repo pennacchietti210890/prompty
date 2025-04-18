@@ -9,24 +9,9 @@ from tqdm import tqdm
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from jinja2 import Environment, Template, DebugUndefined
+from prompty.optimize.evals.evaluator import Evaluator
 
 env = Environment(undefined=DebugUndefined)
-
-class Evaluator(ABC):
-    """Base abstract class for prompt evaluators."""
-
-    @abstractmethod
-    async def evaluate(self, prompt: str) -> float:
-        """Evaluate a prompt and return a score.
-
-        Args:
-            prompt: The prompt to evaluate
-
-        Returns:
-            A score (higher is better)
-        """
-        pass
-
 
 class DatasetEvaluator(Evaluator):
     """Evaluator that uses a dataset to evaluate prompts."""

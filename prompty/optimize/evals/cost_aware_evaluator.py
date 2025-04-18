@@ -5,7 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 from langchain_core.language_models.chat_models import BaseChatModel
 from jinja2 import Environment, Template, DebugUndefined
-from prompty.optimize.evaluator import Evaluator
+from prompty.optimize.evals.evaluator import Evaluator
 import tiktoken
 
 env = Environment(undefined=DebugUndefined)
@@ -59,20 +59,22 @@ class CostAwareEvaluator(Evaluator):
         if max_samples and max_samples < len(self.dataset):
             self.dataset = self.dataset.sample(max_samples, random_state=42)
 
-    def _default_cost_function(self, prompt: str) -> float:
+    def _default_cost_function(self, prompt: str, model_name: str = "gpt-4o-mini", cost_per_million_tokens: float = 0.2) -> float:
         """Default cost function based on token count.
         
         Args:
             prompt: The prompt to calculate cost for
-            
+            model_name: The name of the model to use for cost calculation
+            cost_per_million_tokens: The cost per million tokens for the model
         Returns:
-            Estimated cost based on token count
+            Estimated cost based on token count and cost per million tokens
         """
         # Simple token count as default cost metric
-        # You can replace this with actual API cost calculation
-        return len(prompt.split()) / 1000  # Approximate tokens per word
+        encoding = tiktoken.encoding_for_model(model_name)
+        tokens = encoding.encode(prompt)
+        return len(tokens) * cost_per_million_tokens / 1000000
 
-    async def evaluate(self, prompt: str) -> Dict[str, float]:
+    async def evaluate(self, prompt: str) -> float:
         """Evaluate a prompt considering both performance and cost.
 
         Args:
@@ -114,7 +116,7 @@ class CostAwareEvaluator(Evaluator):
         
         # Normalize cost (assuming lower is better)
         # You might want to adjust this based on your cost function
-        max_expected_cost = 1.0  # Adjust this based on your use case
+        max_expected_cost = 10.0  # Adjust this based on your use case
         normalized_cost = min(total_cost / max_expected_cost, 1.0)
         
         # Calculate combined score
@@ -123,12 +125,14 @@ class CostAwareEvaluator(Evaluator):
             self.cost_weight * normalized_cost
         )
 
-        return {
-            "combined_score": combined_score,
-            "performance_score": avg_performance,
-            "cost_score": normalized_cost,
-            "raw_cost": total_cost
-        }
+        return combined_score
+
+        # return {
+        #     "combined_score": combined_score,
+        #     "performance_score": avg_performance,
+        #     "cost_score": normalized_cost,
+        #     "raw_cost": total_cost
+        # }
 
     def set_weights(self, performance_weight: float, cost_weight: float) -> None:
         """Update the weights for the combined objective.

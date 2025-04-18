@@ -11,7 +11,8 @@ from datasets import load_dataset
 from prompty.prompt_components.schemas import PromptTemplate, NLPTask, PromptComponentCandidates
 from prompty.search_space.generate_prompt import PromptGenerator
 from prompty.search_space.generate_training import BestShotsSelector
-from prompty.optimize.evaluator import DatasetEvaluator 
+from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
+from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.optimizer import Optimizer, SearchSpace
 from datasets import load_dataset
 
@@ -71,7 +72,8 @@ async def main():
     """
 
     # Initialize evaluator
-    evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    #evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    evaluator = CostAwareEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
 
     # get prompt template for text classification 
     logger.info("Loading text classification template...")

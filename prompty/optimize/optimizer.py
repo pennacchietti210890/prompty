@@ -3,8 +3,11 @@
 from typing import Dict, List, Optional, Any, Union, Callable
 import optuna
 import logging
+import numpy as np
 from pydantic import BaseModel
-from prompty.optimize.evaluator import Evaluator
+from prompty.optimize.evals.evaluator import Evaluator
+from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
+from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
 from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCandidates, PromptComponents
 from prompty.tracking.experiment_tracking import ExperimentTracker
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -21,6 +24,18 @@ class SearchSpace(BaseModel):
     other_params: Dict[str, Any]
 
 
+class EarlyStoppingConfig(BaseModel):
+    """Configuration for early stopping mechanisms."""
+
+    min_trials: int = 3
+    max_trials: int = 10
+    patience: int = 3
+    min_improvement: float = 0.01
+    cost_per_trial: float = 1.0
+    max_total_cost: Optional[float] = None
+    min_confidence: float = 0.95
+
+
 class Optimizer:
     """Prompt Optimization base class."""
 
@@ -33,6 +48,7 @@ class Optimizer:
         study_name: str = "prompt_optimization",
         direction: str = "maximize",
         experiment_tracker: Optional[ExperimentTracker] = None,
+        early_stopping_config: Optional[EarlyStoppingConfig] = None,
     ):
         """Initialize the objective function.
 
@@ -45,6 +61,7 @@ class Optimizer:
             storage: Storage for the study
             direction: Direction of the optimization
             experiment_tracker: Optional experiment tracker instance
+            early_stopping_config: Configuration for early stopping mechanisms
         """
         self.evaluator = evaluator
         self.search_space = search_space
@@ -54,6 +71,87 @@ class Optimizer:
         self.direction = direction
         self.study = None
         self.experiment_tracker = experiment_tracker or ExperimentTracker()
+        self.early_stopping_config = early_stopping_config or EarlyStoppingConfig()
+        
+        # Early stopping state
+        self._no_improvement_count = 0
+        self._best_score = float('-inf') if direction == "maximize" else float('inf')
+        self._total_cost = 0.0
+        self._scores_history = []
+
+    def _should_stop_early(self, current_score: float) -> bool:
+        """Determine if optimization should stop early based on various criteria.
+
+        Args:
+            current_score: Score from the current trial
+
+        Returns:
+            True if optimization should stop, False otherwise
+        """
+        config = self.early_stopping_config
+        
+        # Update best score and improvement count
+        if (self.direction == "maximize" and current_score > self._best_score + config.min_improvement) or \
+           (self.direction == "minimize" and current_score < self._best_score - config.min_improvement):
+            self._best_score = current_score
+            self._no_improvement_count = 0
+        else:
+            self._no_improvement_count += 1
+
+        # Update cost
+        self._total_cost += config.cost_per_trial
+        self._scores_history.append(current_score)
+
+        # Check stopping conditions
+        if len(self._scores_history) < config.min_trials:
+            return False
+
+        # 1. No improvement for patience trials
+        if self._no_improvement_count >= config.patience:
+            logger.info(f"Stopping early: No improvement for {config.patience} trials")
+            return True
+
+        # 2. Maximum cost reached
+        if config.max_total_cost and self._total_cost >= config.max_total_cost:
+            logger.info(f"Stopping early: Maximum cost {config.max_total_cost} reached")
+            return True
+
+        # 3. Confidence in convergence
+        if len(self._scores_history) >= config.min_trials:
+            recent_scores = self._scores_history[-config.min_trials:]
+            if self._has_converged(recent_scores, config.min_confidence):
+                logger.info("Stopping early: Solution has converged")
+                return True
+
+        # 4. Maximum trials reached
+        if len(self._scores_history) >= config.max_trials:
+            logger.info(f"Stopping early: Maximum trials {config.max_trials} reached")
+            return True
+
+        return False
+
+    def _has_converged(self, recent_scores: List[float], min_confidence: float) -> bool:
+        """Check if the optimization has converged based on recent scores.
+
+        Args:
+            recent_scores: List of recent scores
+            min_confidence: Minimum confidence required for convergence
+
+        Returns:
+            True if converged, False otherwise
+        """
+        if len(recent_scores) < 3:
+            return False
+
+        # Calculate the standard deviation of recent scores
+        std_dev = np.std(recent_scores)
+        mean_score = np.mean(recent_scores)
+
+        # If standard deviation is small relative to mean, consider converged
+        if mean_score != 0 and std_dev / abs(mean_score) < (1 - min_confidence):
+            return True
+
+        return False
 
     async def _objective_wrapper(self, trial: optuna.Trial) -> float:
         """Objective wrapper for optuna."""
@@ -82,33 +180,47 @@ class Optimizer:
         # Log the trial parameters and score with trial-specific keys
         trial_params = {f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_idx.items()}
         self.experiment_tracker.log_params(trial_params)
-        self.experiment_tracker.log_metrics({"score": score}, step=trial.number)
+        self.experiment_tracker.log_metrics({
+            "score": score,
+            "total_cost": self._total_cost,
+            "trials_completed": len(self._scores_history) + 1
+        }, step=trial.number)
         
         return score
 
-    async def optimize(self) -> float:
-        """Run Optuna optimization."""
+    async def optimize(self) -> Dict[str, Any]:
+        """Run Optuna optimization with early stopping."""
         # Start a new experiment run
         with self.experiment_tracker.start_run(
             run_name=f"optimization_{self.study_name}",
             tags={
                 "optimization_direction": self.direction,
-                "n_trials": str(self.n_trials),
+                "max_trials": str(self.early_stopping_config.max_trials),
+                "early_stopping": "enabled"
             }
         ):
-            # Log the search space configuration
-            self.experiment_tracker.log_params({
+            # Log the search space and early stopping configuration
+            config = {
                 "n_trials": self.n_trials,
                 "timeout": self.timeout,
                 "study_name": self.study_name,
                 "direction": self.direction,
-            })
+                "early_stopping_config": self.early_stopping_config.dict()
+            }
+            self.experiment_tracker.log_params(config)
 
             self.study = optuna.create_study(direction=self.direction)
-            for _ in range(self.n_trials):
+            
+            # Run trials with early stopping
+            for trial_num in range(self.early_stopping_config.max_trials):
                 trial = self.study.ask()
                 result = await self._objective_wrapper(trial)
                 self.study.tell(trial, result)
+                
+                # Check early stopping conditions
+                if self._should_stop_early(result):
+                    logger.info(f"Stopping optimization after {trial_num + 1} trials")
+                    break
 
             # Get the best parameters
             best_params = self.study.best_params
@@ -118,7 +230,7 @@ class Optimizer:
             self.experiment_tracker.log_optimization_results(
                 best_params=best_params,
                 best_value=best_value,
-                n_trials=self.n_trials,
+                n_trials=len(self._scores_history),
                 study_name=self.study_name,
             )
 
@@ -126,6 +238,8 @@ class Optimizer:
             return {
                 "best_params": best_params,
                 "best_value": best_value,
+                "trials_completed": len(self._scores_history),
+                "total_cost": self._total_cost
             }
 
     def save_results(self, file_path: str) -> None:
@@ -146,9 +260,11 @@ class Optimizer:
         results = {
             "best_params": component_params,
             "best_value": self.study.best_value,
-            "n_trials": self.n_trials,
+            "trials_completed": len(self._scores_history),
+            "total_cost": self._total_cost,
             "study_name": self.study_name,
             "direction": self.direction,
+            "early_stopping_config": self.early_stopping_config.dict()
         }
 
         with open(file_path, "w") as f:
