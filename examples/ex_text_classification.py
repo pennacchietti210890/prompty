@@ -17,6 +17,7 @@ from datasets import load_dataset
 
 from langchain.chat_models import init_chat_model
 from jinja2 import Environment, Template, DebugUndefined
+import mlflow
 
 env = Environment(undefined=DebugUndefined)
 
@@ -41,7 +42,7 @@ async def main():
 
     # Initialize LLM
     llm = init_chat_model("gpt-4o-mini", model_provider="openai")
-
+    mlflow.openai.autolog()
     # Load test dataset - AG News for text classification
     ag_news_dataset = load_dataset("ag_news")
     label_names = ag_news_dataset["train"].features["label"].names
