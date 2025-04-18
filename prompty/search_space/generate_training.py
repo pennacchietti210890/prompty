@@ -1,4 +1,5 @@
-from typing import List, Optional, Union, Any, NoReturn
+from typing import Any, List, NoReturn, Optional, Union
+
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_distances

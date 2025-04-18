@@ -1,21 +1,26 @@
 """Objective function implementation for prompt optimization."""
 
-from typing import Dict, List, Optional, Any, Union, Callable
-import optuna
+import asyncio
+import json
 import logging
+from typing import Any, Callable, Dict, List, Optional, Union
+
 import numpy as np
+import optuna
+import pandas as pd
+from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
-from prompty.optimize.evals.evaluator import Evaluator
+
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.prompt_components.schemas import PromptTemplate, PromptComponentCandidates, PromptComponents
+from prompty.optimize.evals.evaluator import Evaluator
+from prompty.prompt_components.schemas import (PromptComponentCandidates,
+                                               PromptComponents,
+                                               PromptTemplate)
 from prompty.tracking.experiment_tracking import ExperimentTracker
-from langchain_core.language_models.chat_models import BaseChatModel
-import pandas as pd
-import json
-import asyncio
 
 logger = logging.getLogger(__name__)
+
 
 class SearchSpace(BaseModel):
     """Search space for prompt optimization."""
@@ -72,10 +77,10 @@ class Optimizer:
         self.study = None
         self.experiment_tracker = experiment_tracker or ExperimentTracker()
         self.early_stopping_config = early_stopping_config or EarlyStoppingConfig()
-        
+
         # Early stopping state
         self._no_improvement_count = 0
-        self._best_score = float('-inf') if direction == "maximize" else float('inf')
+        self._best_score = float("-inf") if direction == "maximize" else float("inf")
         self._total_cost = 0.0
         self._scores_history = []
 
@@ -89,10 +94,15 @@ class Optimizer:
             True if optimization should stop, False otherwise
         """
         config = self.early_stopping_config
-        
+
         # Update best score and improvement count
-        if (self.direction == "maximize" and current_score > self._best_score + config.min_improvement) or \
-           (self.direction == "minimize" and current_score < self._best_score - config.min_improvement):
+        if (
+            self.direction == "maximize"
+            and current_score > self._best_score + config.min_improvement
+        ) or (
+            self.direction == "minimize"
+            and current_score < self._best_score - config.min_improvement
+        ):
             self._best_score = current_score
             self._no_improvement_count = 0
         else:
@@ -118,7 +128,7 @@ class Optimizer:
 
         # 3. Confidence in convergence
         if len(self._scores_history) >= config.min_trials:
-            recent_scores = self._scores_history[-config.min_trials:]
+            recent_scores = self._scores_history[-config.min_trials :]
             if self._has_converged(recent_scores, config.min_confidence):
                 logger.info("Stopping early: Solution has converged")
                 return True
@@ -176,16 +186,21 @@ class Optimizer:
 
         # LLM scoring
         score = await self.evaluator.evaluate(prompt)
-        
+
         # Log the trial parameters and score with trial-specific keys
-        trial_params = {f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_idx.items()}
+        trial_params = {
+            f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_idx.items()
+        }
         self.experiment_tracker.log_params(trial_params)
-        self.experiment_tracker.log_metrics({
-            "score": score,
-            "total_cost": self._total_cost,
-            "trials_completed": len(self._scores_history) + 1
-        }, step=trial.number)
-        
+        self.experiment_tracker.log_metrics(
+            {
+                "score": score,
+                "total_cost": self._total_cost,
+                "trials_completed": len(self._scores_history) + 1,
+            },
+            step=trial.number,
+        )
+
         return score
 
     async def optimize(self) -> Dict[str, Any]:
@@ -196,8 +211,8 @@ class Optimizer:
             tags={
                 "optimization_direction": self.direction,
                 "max_trials": str(self.early_stopping_config.max_trials),
-                "early_stopping": "enabled"
-            }
+                "early_stopping": "enabled",
+            },
         ):
             # Log the search space and early stopping configuration
             config = {
@@ -205,18 +220,18 @@ class Optimizer:
                 "timeout": self.timeout,
                 "study_name": self.study_name,
                 "direction": self.direction,
-                "early_stopping_config": self.early_stopping_config.dict()
+                "early_stopping_config": self.early_stopping_config.dict(),
             }
             self.experiment_tracker.log_params(config)
 
             self.study = optuna.create_study(direction=self.direction)
-            
+
             # Run trials with early stopping
             for trial_num in range(self.early_stopping_config.max_trials):
                 trial = self.study.ask()
                 result = await self._objective_wrapper(trial)
                 self.study.tell(trial, result)
-                
+
                 # Check early stopping conditions
                 if self._should_stop_early(result):
                     logger.info(f"Stopping optimization after {trial_num + 1} trials")
@@ -239,7 +254,7 @@ class Optimizer:
                 "best_params": best_params,
                 "best_value": best_value,
                 "trials_completed": len(self._scores_history),
-                "total_cost": self._total_cost
+                "total_cost": self._total_cost,
             }
 
     def save_results(self, file_path: str) -> None:
@@ -252,10 +267,18 @@ class Optimizer:
             raise ValueError("No optimization results to save. Run optimize() first.")
 
         component_params = {
-            "sys_settings": self.search_space.component_candidates["sys_settings"].candidates[self.study.best_params["sys_settings"]],
-            "task_description": self.search_space.component_candidates["task_description"].candidates[self.study.best_params["task_description"]],
-            "task_instructions": self.search_space.component_candidates["task_instructions"].candidates[self.study.best_params["task_instructions"]],
-            "user_query": self.search_space.component_candidates["user_query"].candidates[self.study.best_params["user_query"]],
+            "sys_settings": self.search_space.component_candidates[
+                "sys_settings"
+            ].candidates[self.study.best_params["sys_settings"]],
+            "task_description": self.search_space.component_candidates[
+                "task_description"
+            ].candidates[self.study.best_params["task_description"]],
+            "task_instructions": self.search_space.component_candidates[
+                "task_instructions"
+            ].candidates[self.study.best_params["task_instructions"]],
+            "user_query": self.search_space.component_candidates[
+                "user_query"
+            ].candidates[self.study.best_params["user_query"]],
         }
         results = {
             "best_params": component_params,
@@ -264,7 +287,7 @@ class Optimizer:
             "total_cost": self._total_cost,
             "study_name": self.study_name,
             "direction": self.direction,
-            "early_stopping_config": self.early_stopping_config.dict()
+            "early_stopping_config": self.early_stopping_config.dict(),
         }
 
         with open(file_path, "w") as f:

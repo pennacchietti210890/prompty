@@ -1,14 +1,15 @@
-from typing import Dict, List, Optional, Tuple, Any, Union
-from langchain_core.language_models.chat_models import BaseChatModel
 import logging
-from prompty.prompt_components.schemas import (
-    PromptComponents,
-    PromptComponentCandidates,
-)
 import os
-from jinja2 import Environment, Template, DebugUndefined
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from jinja2 import DebugUndefined, Environment, Template
+from langchain_core.language_models.chat_models import BaseChatModel
+
+from prompty.prompt_components.schemas import (PromptComponentCandidates,
+                                               PromptComponents)
 
 logger = logging.getLogger(__name__)
+
 
 class PromptGenerator:
     """
@@ -35,28 +36,40 @@ class PromptGenerator:
         self.llm = llm
         self.base_prompt = base_prompt
         self.candidates: Dict[str, "PromptComponentCandidates"] = {}
-        
+
         template_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "prompt_components",
             "templates",
             "components",
         )
-        logger.info(f"Loading prompt componentgeneration templates from {template_path}")
+        logger.info(
+            f"Loading prompt componentgeneration templates from {template_path}"
+        )
 
-        with open(os.path.join(template_path, "get_component.txt"), "r", encoding="utf-8") as file:
+        with open(
+            os.path.join(template_path, "get_component.txt"), "r", encoding="utf-8"
+        ) as file:
             self.components_generate_template = file.read()
 
-        with open(os.path.join(template_path, "sys_settings.txt"), "r", encoding="utf-8") as file:
+        with open(
+            os.path.join(template_path, "sys_settings.txt"), "r", encoding="utf-8"
+        ) as file:
             self.sys_settings_generate_template = file.read()
 
-        with open(os.path.join(template_path, "task_description.txt"), "r", encoding="utf-8") as file:
+        with open(
+            os.path.join(template_path, "task_description.txt"), "r", encoding="utf-8"
+        ) as file:
             self.task_description_generate_template = file.read()
 
-        with open(os.path.join(template_path, "task_instructions.txt"), "r", encoding="utf-8") as file:
+        with open(
+            os.path.join(template_path, "task_instructions.txt"), "r", encoding="utf-8"
+        ) as file:
             self.task_instructions_generate_template = file.read()
 
-        with open(os.path.join(template_path, "user_query.txt"), "r", encoding="utf-8") as file:
+        with open(
+            os.path.join(template_path, "user_query.txt"), "r", encoding="utf-8"
+        ) as file:
             self.user_query_generate_template = file.read()
 
         if not components:
@@ -81,7 +94,9 @@ class PromptGenerator:
         """
         structured_llm = self.llm.with_structured_output(PromptComponents)
         components = structured_llm.invoke(
-            Template(self.components_generate_template).render(raw_prompt=self.base_prompt)
+            Template(self.components_generate_template).render(
+                raw_prompt=self.base_prompt
+            )
         )
         return components
 
@@ -130,17 +145,17 @@ class PromptGenerator:
             "sys_settings": Template(self.sys_settings_generate_template).render(
                 n=num_candidates, rewrite=self._components.sys_settings
             ),
-            "task_description": Template(self.task_description_generate_template).render(
-                n=num_candidates, rewrite=self._components.task_description
-            ),  
-            "task_instructions": Template(self.task_instructions_generate_template).render(   
-                n=num_candidates, rewrite=self._components.task_instructions
-            ),
+            "task_description": Template(
+                self.task_description_generate_template
+            ).render(n=num_candidates, rewrite=self._components.task_description),
+            "task_instructions": Template(
+                self.task_instructions_generate_template
+            ).render(n=num_candidates, rewrite=self._components.task_instructions),
             "user_query": Template(self.user_query_generate_template).render(
                 n=num_candidates, rewrite=self._components.user_query
             ),
         }
-        
+
         for component in self.components:
             if component[1]:
                 logging.info(f"Generating Candidates for component: {component[0]}")

@@ -2,16 +2,17 @@
 
 import json
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
+from jinja2 import DebugUndefined, Environment, Template
+from langchain_core.language_models.chat_models import BaseChatModel
 from tqdm import tqdm
 
-from langchain_core.language_models.chat_models import BaseChatModel
-from jinja2 import Environment, Template, DebugUndefined
 from prompty.optimize.evals.evaluator import Evaluator
 
 env = Environment(undefined=DebugUndefined)
+
 
 class DatasetEvaluator(Evaluator):
     """Evaluator that uses a dataset to evaluate prompts."""
@@ -71,13 +72,15 @@ class DatasetEvaluator(Evaluator):
             # Get input and target from the dataset
             input_text = str(row[self.input_column])
             target = str(row[self.target_column])
-            
+
             # Format the prompt with the input
             formatted_prompt = env.from_string(prompt).render(text=input_text)
-            
+
             # Get the model's response
             response = await self.llm_provider.ainvoke(formatted_prompt)
-            print(f"LLM Response: {response.content.strip()} vs. Target: {target.strip()}") 
+            print(
+                f"LLM Response: {response.content.strip()} vs. Target: {target.strip()}"
+            )
             # Score the response
             score = self.scoring_function(response, target)
             scores.append(score)

@@ -1,14 +1,17 @@
 """Cost-aware evaluator for prompt optimization."""
 
-from typing import Dict, List, Optional, Any, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Union
+
 import pandas as pd
-from tqdm import tqdm
-from langchain_core.language_models.chat_models import BaseChatModel
-from jinja2 import Environment, Template, DebugUndefined
-from prompty.optimize.evals.evaluator import Evaluator
 import tiktoken
+from jinja2 import DebugUndefined, Environment, Template
+from langchain_core.language_models.chat_models import BaseChatModel
+from tqdm import tqdm
+
+from prompty.optimize.evals.evaluator import Evaluator
 
 env = Environment(undefined=DebugUndefined)
+
 
 class CostAwareEvaluator(Evaluator):
     """Evaluator that considers both performance and cost metrics."""
@@ -59,9 +62,14 @@ class CostAwareEvaluator(Evaluator):
         if max_samples and max_samples < len(self.dataset):
             self.dataset = self.dataset.sample(max_samples, random_state=42)
 
-    def _default_cost_function(self, prompt: str, model_name: str = "gpt-4o-mini", cost_per_million_tokens: float = 0.2) -> float:
+    def _default_cost_function(
+        self,
+        prompt: str,
+        model_name: str = "gpt-4o-mini",
+        cost_per_million_tokens: float = 0.2,
+    ) -> float:
         """Default cost function based on token count.
-        
+
         Args:
             prompt: The prompt to calculate cost for
             model_name: The name of the model to use for cost calculation
@@ -97,32 +105,36 @@ class CostAwareEvaluator(Evaluator):
             # Get input and target from the dataset
             input_text = str(row[self.input_column])
             target = str(row[self.target_column])
-            
+
             # Format the prompt with the input
             formatted_prompt = env.from_string(prompt).render(text=input_text)
-            
+
             # Get the model's response
             response = await self.llm_provider.ainvoke(formatted_prompt)
-            
+
             # Calculate performance score
             performance_score = self.scoring_function(response, target)
             performance_scores.append(performance_score)
-            
+
             # Calculate cost
             total_cost += self.cost_function(formatted_prompt)
 
         # Calculate average performance
-        avg_performance = sum(performance_scores) / len(performance_scores) if performance_scores else 0.0
-        
+        avg_performance = (
+            sum(performance_scores) / len(performance_scores)
+            if performance_scores
+            else 0.0
+        )
+
         # Normalize cost (assuming lower is better)
         # You might want to adjust this based on your cost function
         max_expected_cost = 10.0  # Adjust this based on your use case
         normalized_cost = min(total_cost / max_expected_cost, 1.0)
-        
+
         # Calculate combined score
         combined_score = (
-            self.performance_weight * avg_performance -
-            self.cost_weight * normalized_cost
+            self.performance_weight * avg_performance
+            - self.cost_weight * normalized_cost
         )
 
         return combined_score
@@ -145,6 +157,6 @@ class CostAwareEvaluator(Evaluator):
             raise ValueError("Weights must be between 0 and 1")
         if not abs(performance_weight + cost_weight - 1.0) < 1e-6:
             raise ValueError("Weights must sum to 1")
-        
+
         self.performance_weight = performance_weight
-        self.cost_weight = cost_weight 
+        self.cost_weight = cost_weight

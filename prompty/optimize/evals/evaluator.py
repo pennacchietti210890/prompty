@@ -2,15 +2,15 @@
 
 import json
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
+from jinja2 import DebugUndefined, Environment, Template
+from langchain_core.language_models.chat_models import BaseChatModel
 from tqdm import tqdm
 
-from langchain_core.language_models.chat_models import BaseChatModel
-from jinja2 import Environment, Template, DebugUndefined
-
 env = Environment(undefined=DebugUndefined)
+
 
 class Evaluator(ABC):
     """Base abstract class for prompt evaluators."""

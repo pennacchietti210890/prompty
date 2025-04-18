@@ -1,17 +1,19 @@
 """Experiment tracking module for PROMPTy using MLflow."""
 
-import os
+import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, List
-import mlflow
-from mlflow.entities import Param, Metric, RunTag
-from mlflow.tracking import MlflowClient
-from datetime import datetime
-import asyncio
+import os
 from contextlib import contextmanager
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import mlflow
+from mlflow.entities import Metric, Param, RunTag
+from mlflow.tracking import MlflowClient
 
 logger = logging.getLogger(__name__)
+
 
 class ExperimentTracker:
     """Class for tracking experiments using MLflow."""
@@ -30,20 +32,26 @@ class ExperimentTracker:
             tags: Dictionary of tags to add to all runs
         """
         self.experiment_name = experiment_name
-        self.tracking_uri = tracking_uri or os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
+        self.tracking_uri = tracking_uri or os.getenv(
+            "MLFLOW_TRACKING_URI", "file:./mlruns"
+        )
         self.tags = tags or {}
-        
+
         # Set tracking URI
         mlflow.set_tracking_uri(self.tracking_uri)
-        
+
         # Create experiment if it doesn't exist
         try:
             self.experiment_id = mlflow.create_experiment(experiment_name)
         except:
-            self.experiment_id = mlflow.get_experiment_by_name(experiment_name).experiment_id
+            self.experiment_id = mlflow.get_experiment_by_name(
+                experiment_name
+            ).experiment_id
 
     @contextmanager
-    def start_run(self, run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None):
+    def start_run(
+        self, run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None
+    ):
         """Start a new MLflow run.
 
         Args:
@@ -52,7 +60,7 @@ class ExperimentTracker:
         """
         run_tags = {**self.tags, **(tags or {})}
         run_name = run_name or f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         with mlflow.start_run(
             experiment_id=self.experiment_id,
             run_name=run_name,
@@ -67,33 +75,37 @@ class ExperimentTracker:
         Args:
             params: Dictionary of parameters to log
         """
-        if not hasattr(self, 'current_run'):
+        if not hasattr(self, "current_run"):
             raise RuntimeError("No active run. Use start_run() context manager.")
-        
+
         mlflow.log_params(params)
 
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+    def log_metrics(
+        self, metrics: Dict[str, float], step: Optional[int] = None
+    ) -> None:
         """Log metrics to the current run.
 
         Args:
             metrics: Dictionary of metrics to log
             step: Step number for the metrics
         """
-        if not hasattr(self, 'current_run'):
+        if not hasattr(self, "current_run"):
             raise RuntimeError("No active run. Use start_run() context manager.")
-        
+
         mlflow.log_metrics(metrics, step=step)
 
-    def log_artifacts(self, local_dir: str, artifact_path: Optional[str] = None) -> None:
+    def log_artifacts(
+        self, local_dir: str, artifact_path: Optional[str] = None
+    ) -> None:
         """Log artifacts to the current run.
 
         Args:
             local_dir: Local directory containing artifacts
             artifact_path: Path within the run's artifact directory
         """
-        if not hasattr(self, 'current_run'):
+        if not hasattr(self, "current_run"):
             raise RuntimeError("No active run. Use start_run() context manager.")
-        
+
         mlflow.log_artifacts(local_dir, artifact_path)
 
     def log_prompt(self, prompt: str, prompt_name: str = "prompt") -> None:
@@ -103,17 +115,17 @@ class ExperimentTracker:
             prompt: The prompt text to log
             prompt_name: Name of the prompt file
         """
-        if not hasattr(self, 'current_run'):
+        if not hasattr(self, "current_run"):
             raise RuntimeError("No active run. Use start_run() context manager.")
-        
+
         # Create a temporary file for the prompt
         temp_file = f"{prompt_name}.txt"
         with open(temp_file, "w") as f:
             f.write(prompt)
-        
+
         # Log the file as an artifact
         mlflow.log_artifact(temp_file)
-        
+
         # Clean up
         os.remove(temp_file)
 
@@ -136,9 +148,9 @@ class ExperimentTracker:
             max_tokens: Maximum tokens parameter used
             cost: Cost of the API call if available
         """
-        if not hasattr(self, 'current_run'):
+        if not hasattr(self, "current_run"):
             raise RuntimeError("No active run. Use start_run() context manager.")
-        
+
         # Log the call details
         call_details = {
             "timestamp": datetime.now().isoformat(),
@@ -148,18 +160,18 @@ class ExperimentTracker:
             "prompt": prompt,
             "response": response,
         }
-        
+
         if cost is not None:
             call_details["cost"] = cost
-        
+
         # Create a unique filename for this call
         call_id = f"llm_call_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
         call_file = f"{call_id}.json"
-        
+
         # Save and log the call details
         with open(call_file, "w") as f:
             json.dump(call_details, f, indent=2)
-        
+
         mlflow.log_artifact(call_file, "llm_calls")
         os.remove(call_file)
 
@@ -178,9 +190,9 @@ class ExperimentTracker:
             n_trials: Number of trials run
             study_name: Name of the optimization study
         """
-        if not hasattr(self, 'current_run'):
+        if not hasattr(self, "current_run"):
             raise RuntimeError("No active run. Use start_run() context manager.")
-        
+
         # Log the results
         results = {
             "best_params": best_params,
@@ -189,12 +201,12 @@ class ExperimentTracker:
             "study_name": study_name,
             "timestamp": datetime.now().isoformat(),
         }
-        
+
         # Save and log the results
         results_file = "optimization_results.json"
         with open(results_file, "w") as f:
             json.dump(results, f, indent=2)
-        
+
         mlflow.log_artifact(results_file)
         os.remove(results_file)
 
@@ -210,7 +222,9 @@ class ExperimentTracker:
         client = MlflowClient()
         return client.get_run(run_id)
 
-    def get_all_runs(self, experiment_id: Optional[str] = None) -> List[mlflow.entities.Run]:
+    def get_all_runs(
+        self, experiment_id: Optional[str] = None
+    ) -> List[mlflow.entities.Run]:
         """Get all runs for an experiment.
 
         Args:
@@ -221,4 +235,4 @@ class ExperimentTracker:
         """
         client = MlflowClient()
         experiment_id = experiment_id or self.experiment_id
-        return client.search_runs(experiment_id) 
+        return client.search_runs(experiment_id)
