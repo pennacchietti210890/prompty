@@ -42,7 +42,7 @@ async def main():
     """Run a simple prompt optimization example."""
 
     # Initialize LLM
-    llm = init_chat_model("gpt-4o-mini", model_provider="openai")
+    llm = init_chat_model("gpt-4.1-nano", model_provider="openai")
     mlflow.openai.autolog()
     # Load test dataset - AG News for text classification
     ag_news_dataset = load_dataset("ag_news")

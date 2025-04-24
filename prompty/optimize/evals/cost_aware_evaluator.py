@@ -66,7 +66,7 @@ class CostAwareEvaluator(Evaluator):
         self,
         prompt: str,
         model_name: str = "gpt-4o-mini",
-        cost_per_million_tokens: float = 0.2,
+        cost_per_million_tokens: float = 0.1,
     ) -> float:
         """Default cost function based on token count.
 

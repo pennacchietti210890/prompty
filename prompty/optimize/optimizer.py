@@ -10,6 +10,7 @@ import optuna
 import pandas as pd
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
+import tiktoken
 
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
@@ -83,6 +84,27 @@ class Optimizer:
         self._best_score = float("-inf") if direction == "maximize" else float("inf")
         self._total_cost = 0.0
         self._scores_history = []
+        self.trials_costs = []
+
+    @staticmethod
+    def _get_trial_cost(
+        prompt: str,
+        model_name: str = "gpt-4o-mini",
+        cost_per_million_tokens: float = 0.1,
+    ) -> float:
+        """Default cost function based on token count.
+
+        Args:
+            prompt: The prompt to calculate cost for
+            model_name: The name of the model to use for cost calculation
+            cost_per_million_tokens: The cost per million tokens for the model
+        Returns:
+            Estimated cost based on token count and cost per million tokens
+        """
+        # Simple token count as default cost metric
+        encoding = tiktoken.encoding_for_model(model_name)
+        tokens = encoding.encode(prompt)
+        return len(tokens) * cost_per_million_tokens / 1000000
 
     def _should_stop_early(self, current_score: float) -> bool:
         """Determine if optimization should stop early based on various criteria.
@@ -109,7 +131,7 @@ class Optimizer:
             self._no_improvement_count += 1
 
         # Update cost
-        self._total_cost += config.cost_per_trial
+        self._total_cost += self.trials_costs[-1]
         self._scores_history.append(current_score)
 
         # Check stopping conditions
@@ -181,6 +203,9 @@ class Optimizer:
         components = PromptComponents(**trial_suggestions_comp)
         prompt = prompt_template.load_template_from_components(components)
 
+        trial_cost = Optimizer._get_trial_cost(prompt)
+        self.trials_costs.append(trial_cost)
+        
         # Log the prompt for this trial
         self.experiment_tracker.log_prompt(prompt, f"trial_{trial.number}")
 
