@@ -36,7 +36,7 @@ class EarlyStoppingConfig(BaseModel):
     max_trials: int = 10
     patience: int = 3
     min_improvement: float = 0.01
-    cost_per_trial: float = 1.0
+    cost_per_trial: float = 0.0
     max_total_cost: Optional[float] = None
     min_confidence: float = 0.95
 
@@ -187,9 +187,9 @@ class Optimizer:
         # LLM scoring
         score = await self.evaluator.evaluate(prompt)
 
-        # Log the trial parameters and score with trial-specific keys
+        # Log the trial parameters with actual component values
         trial_params = {
-            f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_idx.items()
+            f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_comp.items()
         }
         self.experiment_tracker.log_params(trial_params)
         self.experiment_tracker.log_metrics(

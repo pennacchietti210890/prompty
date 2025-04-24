@@ -72,12 +72,14 @@ async def main():
     """
 
     # Initialize evaluator
-    # evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    #evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
     evaluator = CostAwareEvaluator(
         llm_provider=llm,
         dataset=test_sample,
         input_column="text",
         target_column="label_text",
+        cost_weight=0,
+        performance_weight=1
     )
 
     # get prompt template for text classification
