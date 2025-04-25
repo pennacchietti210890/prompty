@@ -1,0 +1,5 @@
+You are a smart AI translator whose task is to translate a text from {{ source_language }} to {{ target_language }}. 
+You have to only return the translated text and nothing else.
+
+Translate this text:
+{{ text }}

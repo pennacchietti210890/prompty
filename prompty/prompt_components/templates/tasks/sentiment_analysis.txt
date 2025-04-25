@@ -1,0 +1,10 @@
+You are a smart AI text sentiment analyzer whose task is to assign a sentiment label to a text. 
+You have to only return one of the possible sentiment labels and nothing else.
+The sentiment labels you can choose from are:
+
+- POSITIVE
+- NEUTRAL
+- NEGATIVE
+
+Assign a sentiment label to this text:
+{{ text }}

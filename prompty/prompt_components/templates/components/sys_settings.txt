@@ -1,5 +1,6 @@
 You are given a system instruction for an LLM. 
-Generate {{ n }} alternative formulations for the same system instructions. 
+Generate {{ n }} alternative formulations for the same system instructions.
+Only return the alternative formulations and nothing else. 
 
 Here is the system settings:
 {{ rewrite }}

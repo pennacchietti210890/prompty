@@ -74,6 +74,8 @@ class PromptGenerator:
 
         if not components:
             self._components = self._get_components()
+        else:
+            self._components = components
 
     @property
     def components(self) -> "PromptComponents":

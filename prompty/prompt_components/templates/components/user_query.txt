@@ -1,5 +1,6 @@
 You are given a user query for a task to be performed by an LLM. 
 Generate {{ n }} alternative formulations for the same user query.
+Only return the alternative formulations and nothing else.
 
 Here is the user query:
 {{ rewrite }}
