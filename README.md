@@ -13,6 +13,15 @@ PROMPTy allows users to quickly optimize or prototype prompts for large language
 
 ## Features
 
+| Feature             | Status   | Notes                                                   |
+|---------------------|----------|---------------------------------------------------------|
+| Optuna              | ✅       | Standard BO package                                     |
+| HyperOpt            | ✅       | Alternative BO package                                  |
+| Genetic Algor       | ❌       | Planned for future release                              |     
+| Few-shots selector  | ✅       | Random and Diversity few shots selector                 |
+| ML-Flow tracing     | ✅       | Full tracing and parameters logging via ML Flow UI      |
+
+
 - **Prompt Templating**: Break down prompts into reusable components using LLMs
 - **Prompt Optimization**: Optimize prompts using Bayesian optimization via Optuna
 - **Multiple LLM Providers**: Support for OpenAI, Groq, and more

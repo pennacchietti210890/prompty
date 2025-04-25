@@ -1,0 +1,5 @@
+You are given a part of a prompt about a task the LLM has to perform. 
+Generate {{ n }} alternative formulations for the same part of this prompt. 
+
+Here is the part of the prompt:
+{{ rewrite }}
