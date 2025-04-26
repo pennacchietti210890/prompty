@@ -14,10 +14,9 @@ from langchain.chat_models import init_chat_model
 from datasets import load_dataset
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.optimize.bayesian.optuna_optimizer import Optimizer, SearchSpace
+from prompty.optimize.genetic_algorithms.ga_optimizer import GAOptimizer, SearchSpace
 from prompty.prompt_components.schemas import (NLPTask,
                                                PromptComponentCandidates,
-                                               PromptComponents,
                                                PromptTemplate)
 from prompty.search_space.generate_prompt import PromptGenerator
 from prompty.search_space.generate_training import BestShotsSelector
@@ -48,7 +47,7 @@ async def main():
     # Load test dataset - AG News for text classification
     ag_news_dataset = load_dataset("ag_news")
     label_names = ag_news_dataset["train"].features["label"].names
-    print(label_names)
+
     # Convert HF dataset to pandas dataframe
     df_train = ag_news_dataset["train"].to_pandas()
     df_test = ag_news_dataset["test"].to_pandas()
@@ -58,13 +57,8 @@ async def main():
     df_test["label_text"] = df_test["label"].apply(lambda x: label_names[x])
 
     train_sample = df_train.sample(10)
-    test_sample = df_test.sample(20)
+    test_sample = df_test.sample(2)
 
-    # categories for the ag news dataset are:
-    # 1: World
-    # 2: Sports
-    # 3: Business
-    # 4: Science
     labels_names = """
         - World
         - Sports
@@ -99,18 +93,10 @@ async def main():
     baseline_score = await evaluator.evaluate(prompt_template)
     logger.info(f"Baseline Score: {baseline_score}")
 
-    logger.info("Starting Optimization...")
+    logger.info("Starting Genetic Algorithms Optimization...")
     logger.info("Creating Prompt Component candidates...")
 
-    components = PromptComponents(
-        sys_settings="You are a smart AI text classifier whose task is to classify a text into the category it belongs to. ",
-        task_description="You have to only return one of the possible labels and nothing else.",
-        task_instructions="You have to classify the given text into one of the following categories: {{ categories }}",
-        training_examples="",
-        user_query="Label this text: {{ text }}"
-    )
-
-    generator = PromptGenerator(llm=llm, base_prompt=prompt_template, components=components)
+    generator = PromptGenerator(llm=llm, base_prompt=prompt_template)
     generator.get_candidate_components()
 
     logger.info("Extracting best training examples...")
@@ -133,12 +119,12 @@ async def main():
     final_candidates["training_examples"] = shots_prompt_candidates
 
     logger.info("Search space: candidate generation complete...")
-    logger.info("Running Bayesian Optimization via Optuna...")
+    logger.info("Running DEAP Genetic Algorithm Optimization...")
 
     # Create search space from candidates
     search_space = SearchSpace(component_candidates=final_candidates, other_params={})
 
-    optimizer = Optimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
+    optimizer = GAOptimizer(evaluator=evaluator, search_space=search_space)
     results = await optimizer.optimize()
 
     logger.info("Found best prompt configuration:")

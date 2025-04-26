@@ -14,7 +14,7 @@ from langchain.chat_models import init_chat_model
 from datasets import load_dataset
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.optimize.optimizer import Optimizer, SearchSpace
+from prompty.optimize.bayesian.optuna_optimizer import Optimizer, SearchSpace
 from prompty.prompt_components.schemas import (NLPTask,
                                                PromptComponentCandidates,
                                                PromptTemplate)

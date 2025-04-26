@@ -42,7 +42,7 @@ class EarlyStoppingConfig(BaseModel):
     min_confidence: float = 0.95
 
 
-class Optimizer:
+class OptunaOptimizer:
     """Prompt Optimization base class."""
 
     def __init__(
