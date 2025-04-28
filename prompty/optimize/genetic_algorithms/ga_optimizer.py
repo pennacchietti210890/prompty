@@ -35,8 +35,8 @@ class GAOptimizer:
         self,
         evaluator: Evaluator,
         search_space: SearchSpace,
-        population_size: int = 30,
-        n_generations: int = 5,
+        population_size: int = 2,
+        n_generations: int = 2,
         crossover_prob: float = 0.8,
         mutation_prob: float = 0.2,
         tournament_size: int = 3,
@@ -104,10 +104,10 @@ class GAOptimizer:
         components = PromptComponents(**trial_suggestions_comp)
         prompt = prompt_template.load_template_from_components(components)
 
-        self.experiment_tracker.log_prompt(prompt, f"ind_{idx}")
+        self.experiment_tracker.log_prompt(prompt, f"individual_{idx}")
         score = await self.evaluator.evaluate(prompt)
 
-        self.experiment_tracker.log_params({f"ind_{idx}_{k}": v for k, v in trial_suggestions_idx.items()})
+        self.experiment_tracker.log_params({f"individual_{idx}_{k}": v for k, v in trial_suggestions_comp.items()})
         self.experiment_tracker.log_metrics({"score": score}, step=idx)
 
         return (score,)
@@ -171,7 +171,7 @@ class GAOptimizer:
             best_score = best_ind.fitness.values[0]
 
             self.experiment_tracker.log_optimization_results(
-                best_params={name: int(best_ind[i]) for i, name in enumerate(self.component_names)},
+                best_params=best_components,
                 best_value=best_score,
                 n_trials=self.n_generations * self.population_size,
                 study_name="GA_prompt_optimization",
