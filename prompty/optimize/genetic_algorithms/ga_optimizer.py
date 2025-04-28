@@ -28,19 +28,6 @@ class SearchSpace(BaseModel):
     component_candidates: Dict[str, PromptComponentCandidates]
     other_params: Dict[str, Any]
 
-
-# class EarlyStoppingConfig(BaseModel):
-#     """Configuration for early stopping mechanisms."""
-
-#     min_trials: int = 3
-#     max_trials: int = 10
-#     patience: int = 3
-#     min_improvement: float = 0.01
-#     cost_per_trial: float = 0.0
-#     max_total_cost: Optional[float] = None
-#     min_confidence: float = 0.95
-
-
 class GAOptimizer:
     """DEAP (Genetic Algorithms)Prompt Optimization base class."""
 

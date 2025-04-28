@@ -203,7 +203,7 @@ class OptunaOptimizer:
         components = PromptComponents(**trial_suggestions_comp)
         prompt = prompt_template.load_template_from_components(components)
 
-        trial_cost = Optimizer._get_trial_cost(prompt)
+        trial_cost = OptunaOptimizer._get_trial_cost(prompt)
         self.trials_costs.append(trial_cost)
         
         # Log the prompt for this trial
@@ -266,9 +266,14 @@ class OptunaOptimizer:
             best_params = self.study.best_params
             best_value = self.study.best_value
 
+            component_params = {}
+            for component, idx in self.study.best_params.items():
+                if component in self.search_space.component_candidates:
+                    component_params[component] = self.search_space.component_candidates[component].candidates[idx]
+
             # Log the final results
             self.experiment_tracker.log_optimization_results(
-                best_params=best_params,
+                best_params=component_params,
                 best_value=best_value,
                 n_trials=len(self._scores_history),
                 study_name=self.study_name,
@@ -291,20 +296,12 @@ class OptunaOptimizer:
         if not self.study or not hasattr(self.study, "best_params"):
             raise ValueError("No optimization results to save. Run optimize() first.")
 
-        component_params = {
-            "sys_settings": self.search_space.component_candidates[
-                "sys_settings"
-            ].candidates[self.study.best_params["sys_settings"]],
-            "task_description": self.search_space.component_candidates[
-                "task_description"
-            ].candidates[self.study.best_params["task_description"]],
-            "task_instructions": self.search_space.component_candidates[
-                "task_instructions"
-            ].candidates[self.study.best_params["task_instructions"]],
-            "user_query": self.search_space.component_candidates[
-                "user_query"
-            ].candidates[self.study.best_params["user_query"]],
-        }
+        # Convert indices to actual component text
+        component_params = {}
+        for component, idx in self.study.best_params.items():
+            if component in self.search_space.component_candidates:
+                component_params[component] = self.search_space.component_candidates[component].candidates[idx]
+
         results = {
             "best_params": component_params,
             "best_value": self.study.best_value,
