@@ -71,12 +71,22 @@ class GAOptimizer:
         self.best_score = None
         self._setup_deap()
 
-        # Early stopping state
-        # self._no_improvement_count = 0
-        # self._best_score = float("-inf") if direction == "maximize" else float("inf")
-        # self._total_cost = 0.0
-        # self._scores_history = []
-        # self.trials_costs = []
+        # Cost configuration
+        self._total_cost = 0.0
+
+    def calculate_total_evaluations(self):
+        if self.n_generations <= 0:
+            return 0
+        return self.n_generations * self.population_size
+
+    def estimate_total_cost(self):
+        ## to implement
+        
+        # get prompt template from random components from search space
+
+
+        # calcualte cost of prompt
+        return 100
 
     def _setup_deap(self):
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))

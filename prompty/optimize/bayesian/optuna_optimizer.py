@@ -43,7 +43,7 @@ class EarlyStoppingConfig(BaseModel):
 
 
 class OptunaOptimizer:
-    """Prompt Optimization base class."""
+    """Prompt Optimization base class based on Optuna."""
 
     def __init__(
         self,
@@ -64,7 +64,6 @@ class OptunaOptimizer:
             n_trials: Number of trials to run
             timeout: Timeout for the optimization
             study_name: Name of the study
-            storage: Storage for the study
             direction: Direction of the optimization
             experiment_tracker: Optional experiment tracker instance
             early_stopping_config: Configuration for early stopping mechanisms
