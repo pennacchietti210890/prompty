@@ -57,3 +57,6 @@ optimization_results.json
 
 # MLFlow runs
 mlruns/
+
+# WandB runs
+wandb/

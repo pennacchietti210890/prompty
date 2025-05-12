@@ -86,8 +86,11 @@ class WandbTracker:
         file_path = f"{prompt_name}.txt"
         with open(file_path, "w") as f:
             f.write(prompt)
-        wandb.save(file_path)
-        wandb.log({prompt_name: wandb.Artifact(file_path, type="prompt")})
+
+        artifact = wandb.Artifact(name=prompt_name, type="prompt")
+        artifact.add_file(file_path)
+        self.run.log_artifact(artifact)
+
         os.remove(file_path)
 
     def log_llm_call(
