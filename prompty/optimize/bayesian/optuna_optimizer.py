@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
-
+from datetime import datetime
 import numpy as np
 import optuna
 import pandas as pd
@@ -232,7 +232,7 @@ class OptunaOptimizer:
         """Run Optuna optimization with early stopping."""
         # Start a new experiment run
         with self.experiment_tracker.start_run(
-            run_name=f"optimization_{self.study_name}",
+            run_name=f"{self.study_name}_optuna_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             tags={
                 "optimization_direction": self.direction,
                 "max_trials": str(self.early_stopping_config.max_trials),
