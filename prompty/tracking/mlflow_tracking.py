@@ -15,7 +15,7 @@ from mlflow.tracking import MlflowClient
 logger = logging.getLogger(__name__)
 
 
-class ExperimentTracker:
+class MlflowTracker:
     """Class for tracking experiments using MLflow."""
 
     def __init__(

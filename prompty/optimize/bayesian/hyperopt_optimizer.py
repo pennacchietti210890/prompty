@@ -18,7 +18,7 @@ from prompty.optimize.evals.evaluator import Evaluator
 from prompty.prompt_components.schemas import (PromptComponentCandidates,
                                                PromptComponents,
                                                PromptTemplate)
-from prompty.tracking.experiment_tracking import ExperimentTracker
+from prompty.tracking.mlflow_tracking import MlflowTracker
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class HyperOptOptimizer:
         evaluator: Evaluator,
         search_space: SearchSpace,
         max_evals: int = 10,
-        experiment_tracker: Optional[ExperimentTracker] = None,
+        experiment_tracker: Optional[MlflowTracker] = None,
         early_stopping_config: Optional[EarlyStoppingConfig] = None,
     ):
         """Initialize the objective function.
@@ -65,7 +65,7 @@ class HyperOptOptimizer:
         self.evaluator = evaluator
         self.search_space = search_space
         self.max_evals = max_evals
-        self.experiment_tracker = experiment_tracker or ExperimentTracker()
+        self.experiment_tracker = experiment_tracker or MlflowTracker()
         self.early_stopping_config = early_stopping_config or EarlyStoppingConfig()
 
         # Early stopping state

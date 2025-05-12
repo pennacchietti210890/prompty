@@ -17,7 +17,7 @@ from prompty.optimize.evals.evaluator import Evaluator
 from prompty.prompt_components.schemas import (PromptComponentCandidates,
                                                PromptComponents,
                                                PromptTemplate)
-from prompty.tracking.experiment_tracking import ExperimentTracker
+from prompty.tracking.mlflow_tracking import MlflowTracker
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class GAOptimizer:
         mutation_prob: float = 0.2,
         tournament_size: int = 3,
         elitism_size: int = 2,
-        experiment_tracker: Optional[ExperimentTracker] = None,
+        experiment_tracker: Optional[MlflowTracker] = None,
     ):
         """Initialize the GA (DEAP based) optimizer class.
 
@@ -64,7 +64,7 @@ class GAOptimizer:
         self.mutation_prob = mutation_prob
         self.tournament_size = tournament_size
         self.elitism_size = elitism_size
-        self.experiment_tracker = experiment_tracker or ExperimentTracker()
+        self.experiment_tracker = experiment_tracker or MlflowTracker()
         self.component_names = list(search_space.component_candidates.keys())
         self.component_options = [len(search_space.component_candidates[name].candidates) for name in self.component_names]
         self.best_params = None

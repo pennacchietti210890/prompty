@@ -18,7 +18,8 @@ from prompty.optimize.evals.evaluator import Evaluator
 from prompty.prompt_components.schemas import (PromptComponentCandidates,
                                                PromptComponents,
                                                PromptTemplate)
-from prompty.tracking.experiment_tracking import ExperimentTracker
+from prompty.tracking.mlflow_tracking import MlflowTracker
+from prompty.tracking.wandb_tracking import WandbTracker
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class OptunaOptimizer:
         timeout: int = 3600,
         study_name: str = "prompt_optimization",
         direction: str = "maximize",
-        experiment_tracker: Optional[ExperimentTracker] = None,
+        experiment_tracker: Optional[MlflowTracker | WandbTracker] = None,
         early_stopping_config: Optional[EarlyStoppingConfig] = None,
     ):
         """Initialize the objective function.
@@ -75,7 +76,7 @@ class OptunaOptimizer:
         self.study_name = study_name or "prompt_optimization"
         self.direction = direction
         self.study = None
-        self.experiment_tracker = experiment_tracker or ExperimentTracker()
+        self.experiment_tracker = experiment_tracker or MlflowTracker() # if not supplied, default to Mlflow
         self.early_stopping_config = early_stopping_config or EarlyStoppingConfig()
 
         # Early stopping state
