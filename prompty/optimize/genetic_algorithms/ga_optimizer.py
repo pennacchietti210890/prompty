@@ -10,6 +10,8 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel
+import tiktoken
+from datetime import datetime
 
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
@@ -72,6 +74,7 @@ class GAOptimizer:
         self._setup_deap()
 
         # Cost configuration
+        self.trials_costs = []
         self._total_cost = 0.0
 
     def calculate_total_evaluations(self):
@@ -79,14 +82,25 @@ class GAOptimizer:
             return 0
         return self.n_generations * self.population_size
 
-    def estimate_total_cost(self):
-        ## to implement
-        
-        # get prompt template from random components from search space
+    @staticmethod
+    def _get_trial_cost(
+        prompt: str,
+        model_name: str = "gpt-4o-mini",
+        cost_per_million_tokens: float = 0.1,
+    ) -> float:
+        """Default cost function based on token count.
 
-
-        # calcualte cost of prompt
-        return 100
+        Args:
+            prompt: The prompt to calculate cost for
+            model_name: The name of the model to use for cost calculation
+            cost_per_million_tokens: The cost per million tokens for the model
+        Returns:
+            Estimated cost based on token count and cost per million tokens
+        """
+        # Simple token count as default cost metric
+        encoding = tiktoken.encoding_for_model(model_name)
+        tokens = encoding.encode(prompt)
+        return len(tokens) * cost_per_million_tokens / 1000000
 
     def _setup_deap(self):
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -114,18 +128,29 @@ class GAOptimizer:
         components = PromptComponents(**trial_suggestions_comp)
         prompt = prompt_template.load_template_from_components(components)
 
+        trial_cost = GAOptimizer._get_trial_cost(prompt)
+        self._total_cost += trial_cost
+        self.trials_costs.append(trial_cost)
+
         self.experiment_tracker.log_prompt(prompt, f"individual_{idx}")
         score = await self.evaluator.evaluate(prompt)
 
         self.experiment_tracker.log_params({f"individual_{idx}_{k}": v for k, v in trial_suggestions_comp.items()})
-        self.experiment_tracker.log_metrics({"score": score}, step=idx)
+        metrics = {
+            "score": score,
+            "total_cost": self._total_cost,
+            "trials_completed": len(self.trials_costs),
+            "trial_cost": self.trials_costs[-1],
+            "trial_number": len(self.trials_costs)
+        }
+        self.experiment_tracker.log_metrics(metrics, step=idx)
 
         return (score,)
 
     async def optimize(self):
 
         with self.experiment_tracker.start_run(
-            run_name=f"optimization_ga",
+            run_name=f"{self.study_name}_GA_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             tags={
                 "population_size": self.population_size,
                 "n_generations": self.n_generations,

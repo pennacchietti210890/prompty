@@ -11,6 +11,7 @@ import pandas as pd
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
 import tiktoken
+from datetime import datetime
 
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
@@ -153,7 +154,7 @@ class HyperOptOptimizer:
             components = PromptComponents(**params)
             prompt = PromptTemplate().load_template_from_components(components)
 
-            trial_cost = self._get_trial_cost(prompt)
+            trial_cost = HyperOptOptimizer._get_trial_cost(prompt)
             self.trials_costs.append(trial_cost)
 
             score = await self.evaluator.evaluate(prompt)
@@ -203,7 +204,7 @@ class HyperOptOptimizer:
             return result
 
         with self.experiment_tracker.start_run(
-            run_name="hyperopt_optimization",
+            run_name=f"{self.study_name}_HYPEROPT_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             tags={"optimizer": "hyperopt", "early_stopping": "enabled"},
         ):
             self.experiment_tracker.log_params({

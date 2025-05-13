@@ -130,7 +130,8 @@ async def main():
     # Create search space from candidates
     search_space = SearchSpace(component_candidates=final_candidates, other_params={})
 
-    optimizer = OptunaOptimizer(evaluator=evaluator, search_space=search_space, n_trials=5, experiment_tracker=WandbTracker(entity="1404268-freelancer"))
+    optimizer = OptunaOptimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
+    #experiment_tracker=WandbTracker(entity="1404268-freelancer"))
     results = await optimizer.optimize()
 
     logger.info("Found best prompt configuration:")

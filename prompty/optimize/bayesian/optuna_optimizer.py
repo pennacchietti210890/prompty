@@ -205,7 +205,7 @@ class OptunaOptimizer:
 
         trial_cost = OptunaOptimizer._get_trial_cost(prompt)
         self.trials_costs.append(trial_cost)
-        
+        self._total_cost += trial_cost
         # Log the prompt for this trial
         self.experiment_tracker.log_prompt(prompt, f"trial_{trial.number}")
 
@@ -217,22 +217,22 @@ class OptunaOptimizer:
             f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_comp.items()
         }
         self.experiment_tracker.log_params(trial_params)
-        self.experiment_tracker.log_metrics(
-            {
-                "score": score,
-                "total_cost": self._total_cost,
-                "trials_completed": len(self._scores_history) + 1,
-            },
-            step=trial.number,
-        )
-
+        
+        metrics = {
+            "score": score,
+            "total_cost": self._total_cost,
+            "trials_completed": len(self.trials_costs),
+            "trial_cost": self.trials_costs[-1],
+            "trial_number": len(self.trials_costs)
+        }
+        self.experiment_tracker.log_metrics(metrics, step=trial.number)
         return score
 
     async def optimize(self) -> Dict[str, Any]:
         """Run Optuna optimization with early stopping."""
         # Start a new experiment run
         with self.experiment_tracker.start_run(
-            run_name=f"{self.study_name}_optuna_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            run_name=f"{self.study_name}_OPTUNA_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             tags={
                 "optimization_direction": self.direction,
                 "max_trials": str(self.early_stopping_config.max_trials),
