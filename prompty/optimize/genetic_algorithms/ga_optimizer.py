@@ -163,12 +163,21 @@ class GAOptimizer:
             population = self.toolbox.population(n=self.population_size)
 
             for gen in range(self.n_generations):
-                # Evaluate population
+                logger.info(f"Generation {gen + 1}/{self.n_generations}")
+
+                # Only evaluate individuals without valid fitness
+                invalid_inds = [ind for ind in population if not ind.fitness.valid]
                 fitnesses = await asyncio.gather(*[
-                    self._evaluate_individual(ind, idx + gen * 1000) for idx, ind in enumerate(population)
+                    self._evaluate_individual(ind, idx + gen * 1000)
+                    for idx, ind in enumerate(invalid_inds)
                 ])
-                for ind, fit in zip(population, fitnesses):
+                for ind, fit in zip(invalid_inds, fitnesses):
                     ind.fitness.values = fit
+
+                # Early stopping if all elites are preserved and no offspring possible
+                if self.elitism_size == self.population_size:
+                    logger.info("All individuals are elites, stopping early.")
+                    break
 
                 # Select elite individuals
                 elites = tools.selBest(population, self.elitism_size)
