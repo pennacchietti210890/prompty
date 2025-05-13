@@ -150,7 +150,7 @@ class GAOptimizer:
     async def optimize(self):
 
         with self.experiment_tracker.start_run(
-            run_name=f"{self.study_name}_GA_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            run_name=f"prompt_optimization_GA_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             tags={
                 "population_size": self.population_size,
                 "n_generations": self.n_generations,
