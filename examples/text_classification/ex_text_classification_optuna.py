@@ -57,14 +57,9 @@ async def main():
     df_train["label_text"] = df_train["label"].apply(lambda x: label_names[x])
     df_test["label_text"] = df_test["label"].apply(lambda x: label_names[x])
 
-    train_sample = df_train.sample(10)
-    test_sample = df_test.sample(20)
+    train_sample = df_train
+    test_sample = df_test
 
-    # categories for the ag news dataset are:
-    # 1: World
-    # 2: Sports
-    # 3: Business
-    # 4: Science
     labels_names = """
         - World
         - Sports
@@ -73,15 +68,15 @@ async def main():
     """
 
     # Initialize evaluator
-    #evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
-    evaluator = CostAwareEvaluator(
-        llm_provider=llm,
-        dataset=test_sample,
-        input_column="text",
-        target_column="label_text",
-        cost_weight=0,
-        performance_weight=1
-    )
+    evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    # evaluator = CostAwareEvaluator(
+    #     llm_provider=llm,
+    #     dataset=test_sample,
+    #     input_column="text",
+    #     target_column="label_text",
+    #     cost_weight=0,
+    #     performance_weight=1
+    # )
 
     # get prompt template for text classification
     logger.info("Loading text classification template...")
@@ -108,7 +103,7 @@ async def main():
     logger.info("Extracting best training examples...")
     examples = list(train_sample["text"])
     best_shots_selector = BestShotsSelector(examples)
-    diverse_shots = best_shots_selector.min_max_diverse_subset(2)
+    diverse_shots = best_shots_selector.min_max_diverse_subset(20)
 
     logger.info("Constructing input/output pairs for best shots...")
     labels = list(train_sample["label_text"])
