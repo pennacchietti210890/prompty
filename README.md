@@ -7,16 +7,16 @@ A Python package for prompt optimization and prototyping.
 
 PROMPTy allows users to quickly optimize or prototype prompts for large language models. It provides tools for templating prompts using LLMs and optimizing them using either:
 
-- Bayesian Optimization
-- Genetic Algorithms
+- *Bayesian Optimization*
+- *Genetic Algorithms*
 
 The idea stems from the fact that most NLP prompt templates (classification, translation, summarization, etc) can be broken down to 5 key components:
 
-- SYSTEM DESCRIPTION
-- TASK DESCRIPTION
-- INSTRUCTIONS
-- TRAINING (SHOTS)
-- USER QUERY
+- **SYSTEM DESCRIPTION**
+- **TASK DESCRIPTION**
+- **INSTRUCTIONS**
+- **TRAINING (SHOTS)**
+- **USER QUERY**
 
 We can treat the above as separate parameters that influence the final model generation. We can ask an LLM to come up with suitable (5-10-20) candidates for each, except the TRAININIG block. For TRAINING, assuming we have a large training set with labelled examples, we can employ several techniques to come up with the most relevant (n) shots. Once we have the candidates, we have our own search space we can optimize across.
 
