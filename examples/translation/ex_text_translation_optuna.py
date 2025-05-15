@@ -54,13 +54,19 @@ async def main():
     train_sample = df_train.sample(10)
     test_sample = df_test.sample(10)
 
+    train_sample["en"] = train_sample["translation"].apply(lambda x: x["en"])
+    train_sample["fr"] = train_sample["translation"].apply(lambda x: x["fr"])
+
+    test_sample["en"] = test_sample["translation"].apply(lambda x: x["en"])
+    test_sample["fr"] = test_sample["translation"].apply(lambda x: x["fr"])
+
     from evaluate import load as load_metric
 
     bleu_metric = load_metric("bleu")
 
     def bleu_score_fn(pred: str, ref: str) -> float:
         # BLEU expects lists of tokens
-        result = bleu_metric.compute(predictions=[[pred.split()]], references=[[[ref.split()]]])
+        result = bleu_metric.compute(predictions=[pred.content], references=[[ref]])
         return result["bleu"]
 
     # Construct translation evaluator
