@@ -5,29 +5,40 @@
 
 A Python package for prompt optimization and prototyping.
 
-PROMPTy allows users to quickly optimize or prototype prompts for large language models. It provides tools for templating prompts using LLMs and optimizing them using Bayesian optimization.
+PROMPTy allows users to quickly optimize or prototype prompts for large language models. It provides tools for templating prompts using LLMs and optimizing them using either:
+
+- Bayesian Optimization
+- Genetic Algorithms
+
+The idea stems from the fact that most NLP prompt templates (classification, translation, summarization, etc) can be broken down to 5 key components:
+
+- SYSTEM DESCRIPTION
+- TASK DESCRIPTION
+- INSTRUCTIONS
+- TRAINING (SHOTS)
+- USER QUERY
+
+We can treat the above as separate parameters that influence the final model generation. We can ask an LLM to come up with suitable (5-10-20) candidates for each, except the TRAININIG block. For TRAINING, assuming we have a large training set with labelled examples, we can employ several techniques to come up with the most relevant (n) shots. Once we have the candidates, we have our own search space we can optimize across.
 
 <h1>
-  <img src="assets/prompty_flow.png"/>
+  <img src="assets/prompty_steps.png"/>
 </h1>
 
 ## Features
 
-| Feature             | Status   | Notes                                                   |
-|---------------------|----------|---------------------------------------------------------|
-| Optuna              | ✅       | Standard BO package                                     |
-| HyperOpt            | ✅       | Alternative BO package                                  |
-| Genetic Algor       | ❌       | Planned for future release                              |     
-| Few-shots selector  | ✅       | Random and Diversity few shots selector                 |
-| ML-Flow tracing     | ✅       | Full tracing and parameters logging via ML Flow UI      |
+### Optimization
 
+| Optimization algorithm             | Status   | Notes                                                   |
+|------------------------------------|----------|---------------------------------------------------------|
+| Bayesian Optimization              | ✅       | Optuna, Hyperopt                                        |
+| Genetic Algorithms                 | ✅       | DEAP                                                    |
 
-- **Prompt Templating**: Break down prompts into reusable components using LLMs
-- **Prompt Optimization**: Optimize prompts using Bayesian optimization via Optuna
-- **Multiple LLM Providers**: Support for OpenAI, Groq, and more
-- **Dataset Evaluation**: Evaluate prompts on custom datasets
-- **Flexible Framework**: Easily extend with new providers and evaluators
-- **Experiment Tracking**: Integrated MLflow support for tracking optimization experiments
+### Tracing and Evaluation
+
+| Tracing framework             | Status   | Notes                                                   |
+|-------------------------------|----------|---------------------------------------------------------|
+| ML Flow                       | ✅       | Tracing of trials, metrics, parameters                  |
+| Weights and Biases            | ✅       | Tracing of trials, metrics, parameters                  |
 
 ## Installation
 
@@ -47,142 +58,106 @@ pip install -e .
 
 ```python
 import asyncio
+import logging
+import os
+
+import mlflow
 import pandas as pd
-from prompty.llm import OpenAIProvider
-from prompty.prompt_templates import TemplateManager
-from prompty.optimize import DatasetEvaluator, ObjectiveFunction, PromptOptimizer
+from dotenv import load_dotenv
+from jinja2 import DebugUndefined, Environment, Template
+from langchain.chat_models import init_chat_model
 
-# Set up the LLM provider
-llm = OpenAIProvider(api_key="your-api-key")
+from datasets import load_dataset
+from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
+from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
+from prompty.optimize.bayesian.optuna_optimizer import OptunaOptimizer, SearchSpace
+from prompty.prompt_components.schemas import (NLPTask,
+                                               PromptComponentCandidates,
+                                               PromptTemplate)
+from prompty.search_space.generate_prompt import PromptGenerator
+from prompty.search_space.generate_training import BestShotsSelector
+from prompty.tracking.wandb_tracking import WandbTracker
 
-# Create a template manager
-template_manager = TemplateManager(llm_provider=llm)
+env = Environment(undefined=DebugUndefined)
+load_dotenv()
 
-# Create a template from a prompt
+# Get API key from environment
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 async def main():
-    template = await template_manager.create_template(
-        prompt="Summarize the following text in a concise way: {input}",
-        name="summarizer"
+    """Run a simple prompt optimization example."""
+
+    # Initialize LLM
+    llm = init_chat_model("gpt-4.1-nano", model_provider="openai")
+    mlflow.openai.autolog()
+    
+    # Load test dataset - AG News for text classification
+    ag_news_dataset = load_dataset("ag_news")
+    label_names = ag_news_dataset["train"].features["label"].names
+
+    # Convert HF dataset to pandas dataframe
+    df_train = ag_news_dataset["train"].to_pandas()
+    df_test = ag_news_dataset["test"].to_pandas()
+
+    # Optional: map numeric labels to strings
+    df_train["label_text"] = df_train["label"].apply(lambda x: label_names[x])
+    df_test["label_text"] = df_test["label"].apply(lambda x: label_names[x])
+
+    train_sample = df_train.sample(10)
+    test_sample = df_test.sample(20)
+
+    labels_names = """
+        - World
+        - Sports
+        - Business
+        - Sci/Tech
+    """
+
+    # Initialize evaluator
+    evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    text_classification_prompt_template = PromptTemplate(
+        task=NLPTask.TEXT_CLASSIFICATION
     )
-    
-    # Define a scoring function
-    def score_summary(response, target):
-        # Simple scoring based on length (just an example)
-        if len(response) < 10:
-            return 0.0
-        if len(response) > 200:
-            return 0.2
-        return 0.8
-    
-    # Create a dataset for evaluation
-    data = pd.DataFrame({
-        "input": ["Long text to summarize...", "Another text..."],
-        "target": ["Short summary", "Another summary"]
-    })
-    
-    # Set up an evaluator
-    evaluator = DatasetEvaluator(
-        llm_provider=llm,
-        dataset=data,
-        input_column="input",
-        target_column="target",
-        scoring_function=score_summary,
-        max_samples=10
+    prompt_template = env.from_string(
+        text_classification_prompt_template.load_template_from_task()
+    ).render(categories=labels_names)
+
+    baseline_score = await evaluator.evaluate(prompt_template)
+    generator = PromptGenerator(llm=llm, base_prompt=prompt_template)
+    generator.get_candidate_components()
+
+    examples = list(train_sample["text"])
+    best_shots_selector = BestShotsSelector(examples)
+    diverse_shots = best_shots_selector.min_max_diverse_subset(2)
+
+    labels = list(train_sample["label_text"])
+    labels = [labels[examples.index(shot)] for shot in diverse_shots]
+
+    examples_str = "\n\n".join(
+        [f"{example}. \n{label}" for example, label in zip(diverse_shots, labels)]
     )
-    
-    # Create an objective function
-    objective = ObjectiveFunction(
-        evaluator=evaluator,
-        template=template
-    )
-    
-    # Create and run the optimizer
-    optimizer = PromptOptimizer(
-        objective=objective,
-        n_trials=10
-    )
-    
-    results = await optimizer.optimize()
-    print(f"Best prompt: {results['best_prompt']}")
-    print(f"Best score: {results['best_value']}")
-    
-    # Save the results
+
+    shots_prompt = f"Here are some examples of similar text to the one you have to classify, with their corresponding labels:\n{examples_str}"
+
+    shots_prompt_candidates = PromptComponentCandidates(candidates=[shots_prompt])
+    final_candidates = generator.candidates
+    final_candidates["training_examples"] = shots_prompt_candidates
+
+    # Create search space from candidates
+    search_space = SearchSpace(component_candidates=final_candidates, other_params={})
+    optimizer = OptunaOptimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
+    #experiment_tracker=WandbTracker(entity="1404268-freelancer"))
+    results = await optimizer.optimize()    # Save the results
     optimizer.save_results("optimization_results.json")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Experiment Tracking with MLflow
-
-PROMPTy now includes built-in support for MLflow experiment tracking. This allows you to:
-
-- Track optimization trials and their parameters
-- Log prompts and their performance metrics
-- Compare different optimization runs
-- Visualize optimization progress
-
-### Basic Usage
-
-```python
-from prompty.experiment_tracking import ExperimentTracker
-from prompty.optimize import PromptOptimizer
-
-# Create an experiment tracker
-tracker = ExperimentTracker(
-    experiment_name="my_prompt_experiment",
-    tags={"project": "prompt_optimization"}
-)
-
-# Use the tracker with your optimizer
-optimizer = PromptOptimizer(
-    objective=objective,
-    n_trials=10,
-    experiment_tracker=tracker
-)
-
-# Run optimization - all trials will be automatically tracked
-results = await optimizer.optimize()
-```
-
-### Viewing Results
-
-After running your optimization, you can view the results using the MLflow UI:
-
-```bash
-mlflow ui
-```
-
-Then open your browser to `http://localhost:5000` to see:
-- All optimization trials
-- Parameter values for each trial
-- Performance metrics
-- Generated prompts
-- Best performing configurations
-
-### What's Tracked
-
-The experiment tracker automatically logs:
-- Optimization parameters and search space
-- Trial-specific parameters and metrics
-- Generated prompts for each trial
-- Final optimization results
-- LLM API calls and their details
-
-## Documentation
-
-For detailed documentation, see the [docs](https://github.com/yourusername/prompty/docs).
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
