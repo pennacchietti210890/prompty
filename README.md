@@ -12,7 +12,7 @@ PROMPTy allows users to quickly optimize or prototype prompts for large language
 
 The idea stems from the fact that most NLP prompt templates (classification, translation, summarization, etc) can be broken down to 5 key components:
 
-- **SYSTEM DESCRIPTION**
+- **SYSTEM SETTINGS**
 - **TASK DESCRIPTION**
 - **INSTRUCTIONS**
 - **TRAINING (SHOTS)**
