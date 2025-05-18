@@ -1,17 +1,17 @@
 """Base Optimizer class for Genetic Algorithms selection."""
 
-import random
-from deap import base, creator, tools
 import asyncio
 import json
 import logging
+import random
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel
 import tiktoken
-from datetime import datetime
+from deap import base, creator, tools
+from pydantic import BaseModel
 
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
@@ -29,6 +29,7 @@ class SearchSpace(BaseModel):
 
     component_candidates: Dict[str, PromptComponentCandidates]
     other_params: Dict[str, Any]
+
 
 class GAOptimizer:
     """DEAP (Genetic Algorithms)Prompt Optimization base class."""
@@ -68,7 +69,10 @@ class GAOptimizer:
         self.elitism_size = elitism_size
         self.experiment_tracker = experiment_tracker or MlflowTracker()
         self.component_names = list(search_space.component_candidates.keys())
-        self.component_options = [len(search_space.component_candidates[name].candidates) for name in self.component_names]
+        self.component_options = [
+            len(search_space.component_candidates[name].candidates)
+            for name in self.component_names
+        ]
         self.best_params = None
         self.best_score = None
         self._setup_deap()
@@ -107,24 +111,41 @@ class GAOptimizer:
         creator.create("Individual", list, fitness=creator.FitnessMax)
 
         self.toolbox = base.Toolbox()
-        self.toolbox.register("attr_int", lambda max_val: random.randint(0, max_val - 1))
-        self.toolbox.register("individual", lambda: creator.Individual(
-            [self.toolbox.attr_int(max_val) for max_val in self.component_options]
-        ))
-        self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
+        self.toolbox.register(
+            "attr_int", lambda max_val: random.randint(0, max_val - 1)
+        )
+        self.toolbox.register(
+            "individual",
+            lambda: creator.Individual(
+                [self.toolbox.attr_int(max_val) for max_val in self.component_options]
+            ),
+        )
+        self.toolbox.register(
+            "population", tools.initRepeat, list, self.toolbox.individual
+        )
         self.toolbox.register("mate", tools.cxTwoPoint)
-        self.toolbox.register("mutate", tools.mutUniformInt, low=0, up=[x - 1 for x in self.component_options], indpb=0.2)
-        self.toolbox.register("select", tools.selTournament, tournsize=self.tournament_size)
-    
+        self.toolbox.register(
+            "mutate",
+            tools.mutUniformInt,
+            low=0,
+            up=[x - 1 for x in self.component_options],
+            indpb=0.2,
+        )
+        self.toolbox.register(
+            "select", tools.selTournament, tournsize=self.tournament_size
+        )
+
     async def _evaluate_individual(self, individual, idx):
-        trial_suggestions_idx = {name: val for name, val in zip(self.component_names, individual)}
+        trial_suggestions_idx = {
+            name: val for name, val in zip(self.component_names, individual)
+        }
         trial_suggestions_comp = {
             name: self.search_space.component_candidates[name].candidates[val]
             for name, val in trial_suggestions_idx.items()
         }
 
         prompt_template = PromptTemplate()
-        
+
         components = PromptComponents(**trial_suggestions_comp)
         prompt = prompt_template.load_template_from_components(components)
 
@@ -135,13 +156,15 @@ class GAOptimizer:
         self.experiment_tracker.log_prompt(prompt, f"individual_{idx}")
         score = await self.evaluator.evaluate(prompt)
 
-        self.experiment_tracker.log_params({f"individual_{idx}_{k}": v for k, v in trial_suggestions_comp.items()})
+        self.experiment_tracker.log_params(
+            {f"individual_{idx}_{k}": v for k, v in trial_suggestions_comp.items()}
+        )
         metrics = {
             "score": score,
             "total_cost": self._total_cost,
             "trials_completed": len(self.trials_costs),
             "trial_cost": self.trials_costs[-1],
-            "trial_number": len(self.trials_costs)
+            "trial_number": len(self.trials_costs),
         }
         self.experiment_tracker.log_metrics(metrics, step=idx)
 
@@ -167,10 +190,12 @@ class GAOptimizer:
 
                 # Only evaluate individuals without valid fitness
                 invalid_inds = [ind for ind in population if not ind.fitness.valid]
-                fitnesses = await asyncio.gather(*[
-                    self._evaluate_individual(ind, idx + gen * 1000)
-                    for idx, ind in enumerate(invalid_inds)
-                ])
+                fitnesses = await asyncio.gather(
+                    *[
+                        self._evaluate_individual(ind, idx + gen * 1000)
+                        for idx, ind in enumerate(invalid_inds)
+                    ]
+                )
                 for ind, fit in zip(invalid_inds, fitnesses):
                     ind.fitness.values = fit
 
@@ -183,7 +208,9 @@ class GAOptimizer:
                 elites = tools.selBest(population, self.elitism_size)
 
                 # Generate offspring
-                offspring = self.toolbox.select(population, len(population) - self.elitism_size)
+                offspring = self.toolbox.select(
+                    population, len(population) - self.elitism_size
+                )
                 offspring = list(map(self.toolbox.clone, offspring))
 
                 for child1, child2 in zip(offspring[::2], offspring[1::2]):
@@ -198,9 +225,12 @@ class GAOptimizer:
 
                 # Evaluate offspring that were changed
                 invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-                new_fitnesses = await asyncio.gather(*[
-                    self._evaluate_individual(ind, idx + gen * 1000 + 500) for idx, ind in enumerate(invalid_ind)
-                ])
+                new_fitnesses = await asyncio.gather(
+                    *[
+                        self._evaluate_individual(ind, idx + gen * 1000 + 500)
+                        for idx, ind in enumerate(invalid_ind)
+                    ]
+                )
                 for ind, fit in zip(invalid_ind, new_fitnesses):
                     ind.fitness.values = fit
 

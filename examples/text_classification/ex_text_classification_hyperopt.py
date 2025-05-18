@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Basic usage example for PROMPTy."""
 import nest_asyncio
+
 nest_asyncio.apply()
 
 import asyncio
@@ -14,15 +15,15 @@ from jinja2 import DebugUndefined, Environment, Template
 from langchain.chat_models import init_chat_model
 
 from datasets import load_dataset
+from prompty.optimize.bayesian.hyperopt_optimizer import (HyperOptOptimizer,
+                                                          SearchSpace)
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.optimize.bayesian.hyperopt_optimizer import HyperOptOptimizer, SearchSpace
 from prompty.prompt_components.schemas import (NLPTask,
                                                PromptComponentCandidates,
                                                PromptTemplate)
 from prompty.search_space.generate_prompt import PromptGenerator
 from prompty.search_space.generate_training import BestShotsSelector
-
 
 env = Environment(undefined=DebugUndefined)
 
@@ -70,14 +71,14 @@ async def main():
     """
 
     # Initialize evaluator
-    #evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    # evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
     evaluator = CostAwareEvaluator(
         llm_provider=llm,
         dataset=test_sample,
         input_column="text",
         target_column="label_text",
         cost_weight=0,
-        performance_weight=1
+        performance_weight=1,
     )
 
     # get prompt template for text classification
@@ -127,7 +128,9 @@ async def main():
     # Create search space from candidates
     search_space = SearchSpace(component_candidates=final_candidates, other_params={})
 
-    optimizer = HyperOptOptimizer(evaluator=evaluator, search_space=search_space, max_evals=5)
+    optimizer = HyperOptOptimizer(
+        evaluator=evaluator, search_space=search_space, max_evals=5
+    )
     results = optimizer.optimize()
 
     logger.info("Found best prompt configuration:")

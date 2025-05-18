@@ -3,15 +3,15 @@
 import asyncio
 import json
 import logging
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 import pandas as pd
+import tiktoken
+from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
-import tiktoken
-from datetime import datetime
 
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
@@ -140,15 +140,19 @@ class HyperOptOptimizer:
         # Ensure all required components are present
         required_components = set(PromptComponents.__fields__.keys())
         missing_components = required_components - set(params.keys())
-        
+
         if missing_components:
             logger.warning(f"Missing components: {missing_components}")
             # Use default values for missing components
             for component in missing_components:
                 if component in self.search_space.component_candidates:
-                    params[component] = self.search_space.component_candidates[component].candidates[0]
+                    params[component] = self.search_space.component_candidates[
+                        component
+                    ].candidates[0]
                 else:
-                    raise ValueError(f"Missing required component {component} and no default available")
+                    raise ValueError(
+                        f"Missing required component {component} and no default available"
+                    )
 
         try:
             components = PromptComponents(**params)
@@ -162,7 +166,9 @@ class HyperOptOptimizer:
             # Log each parameter with trial number in the name
             trial_num = len(self._scores_history)
             for param_name, param_value in params.items():
-                self.experiment_tracker.log_params({f"trial_{trial_num}_{param_name}": param_value})
+                self.experiment_tracker.log_params(
+                    {f"trial_{trial_num}_{param_name}": param_value}
+                )
 
             # Log prompt with trial number
             self.experiment_tracker.log_prompt(prompt, f"trial_{trial_num}")
@@ -173,7 +179,7 @@ class HyperOptOptimizer:
                 "total_cost": self._total_cost,
                 "trials_completed": trial_num + 1,
                 "trial_cost": trial_cost,
-                "trial_number": trial_num
+                "trial_number": trial_num,
             }
             self.experiment_tracker.log_metrics(metrics, step=trial_num)
 
@@ -181,7 +187,7 @@ class HyperOptOptimizer:
                 "loss": -score,  # HyperOpt minimizes
                 "status": STATUS_OK,
                 "score": score,
-                "params": params
+                "params": params,
             }
         except Exception as e:
             logger.error(f"Error in objective function: {str(e)}")
@@ -189,9 +195,9 @@ class HyperOptOptimizer:
                 "loss": float("inf"),
                 "status": STATUS_OK,
                 "score": float("-inf"),
-                "params": params
+                "params": params,
             }
-    
+
     def optimize(self):
         """Run hyperopt optimization."""
         trials = Trials()
@@ -207,10 +213,12 @@ class HyperOptOptimizer:
             run_name=f"{self.study_name}_HYPEROPT_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             tags={"optimizer": "hyperopt", "early_stopping": "enabled"},
         ):
-            self.experiment_tracker.log_params({
-                "max_evals": self.max_evals,
-                "early_stopping_config": self.early_stopping_config.dict()
-            })
+            self.experiment_tracker.log_params(
+                {
+                    "max_evals": self.max_evals,
+                    "early_stopping_config": self.early_stopping_config.dict(),
+                }
+            )
 
             # Hard coded to simulate early stopping - otherwise fmin will run max_evals
             for i in range(self.max_evals):
@@ -221,7 +229,7 @@ class HyperOptOptimizer:
                     algo=tpe.suggest,
                     max_evals=prev_len + 1,  # Always do just one new trial
                     trials=trials,
-                    show_progressbar=True
+                    show_progressbar=True,
                 )
 
                 result = trials.results[-1]
@@ -237,23 +245,27 @@ class HyperOptOptimizer:
                 best_params=self.best_params,
                 best_value=self.best_value,
                 n_trials=len(self._scores_history),
-                study_name="hyperopt_study"
+                study_name="hyperopt_study",
             )
 
         return {
             "best_params": self.best_params,
             "best_value": self.best_value,
             "trials_completed": len(self._scores_history),
-            "total_cost": self._total_cost
+            "total_cost": self._total_cost,
         }
 
     def save_results(self, file_path: str):
         """Save the optimization results to a JSON file."""
         with open(file_path, "w") as f:
-            json.dump({
-                "best_params": self.best_params,
-                "best_value": self.best_value,
-                "trials_completed": len(self._scores_history),
-                "total_cost": self._total_cost,
-                "early_stopping_config": self.early_stopping_config.dict()
-            }, f, indent=2)
+            json.dump(
+                {
+                    "best_params": self.best_params,
+                    "best_value": self.best_value,
+                    "trials_completed": len(self._scores_history),
+                    "total_cost": self._total_cost,
+                    "early_stopping_config": self.early_stopping_config.dict(),
+                },
+                f,
+                indent=2,
+            )

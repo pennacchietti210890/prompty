@@ -3,14 +3,15 @@
 import asyncio
 import json
 import logging
-from typing import Any, Callable, Dict, List, Optional, Union
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Union
+
 import numpy as np
 import optuna
 import pandas as pd
+import tiktoken
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
-import tiktoken
 
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
@@ -76,7 +77,9 @@ class OptunaOptimizer:
         self.study_name = study_name or "prompt_optimization"
         self.direction = direction
         self.study = None
-        self.experiment_tracker = experiment_tracker or MlflowTracker() # if not supplied, default to Mlflow
+        self.experiment_tracker = (
+            experiment_tracker or MlflowTracker()
+        )  # if not supplied, default to Mlflow
         self.early_stopping_config = early_stopping_config or EarlyStoppingConfig()
 
         # Early stopping state
@@ -217,13 +220,13 @@ class OptunaOptimizer:
             f"trial_{trial.number}_{k}": v for k, v in trial_suggestions_comp.items()
         }
         self.experiment_tracker.log_params(trial_params)
-        
+
         metrics = {
             "score": score,
             "total_cost": self._total_cost,
             "trials_completed": len(self.trials_costs),
             "trial_cost": self.trials_costs[-1],
-            "trial_number": len(self.trials_costs)
+            "trial_number": len(self.trials_costs),
         }
         self.experiment_tracker.log_metrics(metrics, step=trial.number)
         return score
@@ -269,7 +272,11 @@ class OptunaOptimizer:
             component_params = {}
             for component, idx in self.study.best_params.items():
                 if component in self.search_space.component_candidates:
-                    component_params[component] = self.search_space.component_candidates[component].candidates[idx]
+                    component_params[component] = (
+                        self.search_space.component_candidates[component].candidates[
+                            idx
+                        ]
+                    )
 
             # Log the final results
             self.experiment_tracker.log_optimization_results(
@@ -300,7 +307,9 @@ class OptunaOptimizer:
         component_params = {}
         for component, idx in self.study.best_params.items():
             if component in self.search_space.component_candidates:
-                component_params[component] = self.search_space.component_candidates[component].candidates[idx]
+                component_params[component] = self.search_space.component_candidates[
+                    component
+                ].candidates[idx]
 
         results = {
             "best_params": component_params,

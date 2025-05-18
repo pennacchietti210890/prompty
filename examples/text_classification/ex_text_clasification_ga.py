@@ -14,7 +14,8 @@ from langchain.chat_models import init_chat_model
 from datasets import load_dataset
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.optimize.genetic_algorithms.ga_optimizer import GAOptimizer, SearchSpace
+from prompty.optimize.genetic_algorithms.ga_optimizer import (GAOptimizer,
+                                                              SearchSpace)
 from prompty.prompt_components.schemas import (NLPTask,
                                                PromptComponentCandidates,
                                                PromptTemplate)
@@ -67,14 +68,14 @@ async def main():
     """
 
     # Initialize evaluator
-    #evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    # evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
     evaluator = CostAwareEvaluator(
         llm_provider=llm,
         dataset=test_sample,
         input_column="text",
         target_column="label_text",
         cost_weight=0,
-        performance_weight=1
+        performance_weight=1,
     )
 
     # get prompt template for text classification

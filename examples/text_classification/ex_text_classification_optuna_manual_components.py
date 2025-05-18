@@ -12,9 +12,9 @@ from jinja2 import DebugUndefined, Environment, Template
 from langchain.chat_models import init_chat_model
 
 from datasets import load_dataset
+from prompty.optimize.bayesian.optuna_optimizer import Optimizer, SearchSpace
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.optimize.bayesian.optuna_optimizer import Optimizer, SearchSpace
 from prompty.prompt_components.schemas import (NLPTask,
                                                PromptComponentCandidates,
                                                PromptComponents,
@@ -73,14 +73,14 @@ async def main():
     """
 
     # Initialize evaluator
-    #evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    # evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
     evaluator = CostAwareEvaluator(
         llm_provider=llm,
         dataset=test_sample,
         input_column="text",
         target_column="label_text",
         cost_weight=0,
-        performance_weight=1
+        performance_weight=1,
     )
 
     # get prompt template for text classification
@@ -107,10 +107,12 @@ async def main():
         task_description="You have to only return one of the possible labels and nothing else.",
         task_instructions="You have to classify the given text into one of the following categories: {{ categories }}",
         training_examples="",
-        user_query="Label this text: {{ text }}"
+        user_query="Label this text: {{ text }}",
     )
 
-    generator = PromptGenerator(llm=llm, base_prompt=prompt_template, components=components)
+    generator = PromptGenerator(
+        llm=llm, base_prompt=prompt_template, components=components
+    )
     generator.get_candidate_components()
 
     logger.info("Extracting best training examples...")

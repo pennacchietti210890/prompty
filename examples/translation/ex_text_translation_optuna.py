@@ -12,9 +12,10 @@ from jinja2 import DebugUndefined, Environment, Template
 from langchain.chat_models import init_chat_model
 
 from datasets import load_dataset
+from prompty.optimize.bayesian.optuna_optimizer import (OptunaOptimizer,
+                                                        SearchSpace)
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.optimize.bayesian.optuna_optimizer import OptunaOptimizer, SearchSpace
 from prompty.prompt_components.schemas import (NLPTask,
                                                PromptComponentCandidates,
                                                PromptTemplate)
@@ -48,7 +49,9 @@ async def main():
 
     # Load WMT14 English-French dataset
     dataset = load_dataset("wmt14", "fr-en")
-    df_train = dataset["train"].shuffle(seed=42).select(range(500)).to_pandas()  # sample to speed up
+    df_train = (
+        dataset["train"].shuffle(seed=42).select(range(500)).to_pandas()
+    )  # sample to speed up
     df_test = dataset["test"].shuffle(seed=42).select(range(50)).to_pandas()
 
     train_sample = df_train.sample(10)
@@ -80,7 +83,9 @@ async def main():
 
     logger.info("Loading translation prompt template...")
     translation_prompt_template = PromptTemplate(task=NLPTask.TRANSLATION)
-    prompt_template = env.from_string(translation_prompt_template.load_template_from_task()).render()
+    prompt_template = env.from_string(
+        translation_prompt_template.load_template_from_task()
+    ).render()
 
     logger.info("Template:")
     logger.info(prompt_template)
@@ -103,7 +108,9 @@ async def main():
     examples_str = "\n\n".join(
         [f"English: {en}\nFrench: {fr}" for en, fr in zip(diverse_shots, translations)]
     )
-    shots_prompt = f"Here are some English to French translation examples:\n\n{examples_str}"
+    shots_prompt = (
+        f"Here are some English to French translation examples:\n\n{examples_str}"
+    )
 
     shots_prompt_candidates = PromptComponentCandidates(candidates=[shots_prompt])
     final_candidates = generator.candidates
@@ -112,7 +119,9 @@ async def main():
     search_space = SearchSpace(component_candidates=final_candidates, other_params={})
 
     logger.info("Running Optuna for BLEU optimization...")
-    optimizer = OptunaOptimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
+    optimizer = OptunaOptimizer(
+        evaluator=evaluator, search_space=search_space, n_trials=5
+    )
     results = await optimizer.optimize()
 
     logger.info("Best Prompt Found:")

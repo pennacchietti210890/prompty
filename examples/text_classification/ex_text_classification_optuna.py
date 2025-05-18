@@ -12,9 +12,10 @@ from jinja2 import DebugUndefined, Environment, Template
 from langchain.chat_models import init_chat_model
 
 from datasets import load_dataset
+from prompty.optimize.bayesian.optuna_optimizer import (OptunaOptimizer,
+                                                        SearchSpace)
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.optimize.bayesian.optuna_optimizer import OptunaOptimizer, SearchSpace
 from prompty.prompt_components.schemas import (NLPTask,
                                                PromptComponentCandidates,
                                                PromptTemplate)
@@ -68,7 +69,12 @@ async def main():
     """
 
     # Initialize evaluator
-    evaluator = DatasetEvaluator(llm_provider=llm, dataset=test_sample, input_column="text", target_column="label_text")
+    evaluator = DatasetEvaluator(
+        llm_provider=llm,
+        dataset=test_sample,
+        input_column="text",
+        target_column="label_text",
+    )
     # evaluator = CostAwareEvaluator(
     #     llm_provider=llm,
     #     dataset=test_sample,
@@ -125,8 +131,10 @@ async def main():
     # Create search space from candidates
     search_space = SearchSpace(component_candidates=final_candidates, other_params={})
 
-    optimizer = OptunaOptimizer(evaluator=evaluator, search_space=search_space, n_trials=5)
-    #experiment_tracker=WandbTracker(entity="1404268-freelancer"))
+    optimizer = OptunaOptimizer(
+        evaluator=evaluator, search_space=search_space, n_trials=5
+    )
+    # experiment_tracker=WandbTracker(entity="1404268-freelancer"))
     results = await optimizer.optimize()
 
     logger.info("Found best prompt configuration:")

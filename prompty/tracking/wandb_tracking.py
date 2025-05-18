@@ -1,9 +1,10 @@
-import wandb
-import os
 import json
-from datetime import datetime
+import os
 from contextlib import contextmanager
-from typing import Optional, Dict, Any
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+import wandb
 
 
 class WandbTracker:
@@ -32,7 +33,12 @@ class WandbTracker:
         self.run = None
 
     @contextmanager
-    def start_run(self, run_name: Optional[str] = None, tags: Optional[Dict[str, Any]] = None, config: Optional[Dict[str, Any]] = None):
+    def start_run(
+        self,
+        run_name: Optional[str] = None,
+        tags: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ):
         """
         Start a new W&B run as a context manager.
 
@@ -49,7 +55,7 @@ class WandbTracker:
             entity=self.entity,
             name=run_name,
             config=config or {},
-            tags=tags or list(self.tags.values())
+            tags=tags or list(self.tags.values()),
         )
         try:
             yield self.run
@@ -65,7 +71,9 @@ class WandbTracker:
         """
         wandb.config.update(params, allow_val_change=True)
 
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+    def log_metrics(
+        self, metrics: Dict[str, float], step: Optional[int] = None
+    ) -> None:
         """
         Log metrics to the current run.
 
