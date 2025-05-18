@@ -15,13 +15,14 @@ from jinja2 import DebugUndefined, Environment, Template
 from langchain.chat_models import init_chat_model
 
 from datasets import load_dataset
-from prompty.optimize.bayesian.hyperopt_optimizer import (HyperOptOptimizer,
-                                                          SearchSpace)
+from prompty.optimize.bayesian.hyperopt_optimizer import HyperOptOptimizer, SearchSpace
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.prompt_components.schemas import (NLPTask,
-                                               PromptComponentCandidates,
-                                               PromptTemplate)
+from prompty.prompt_components.schemas import (
+    NLPTask,
+    PromptComponentCandidates,
+    PromptTemplate,
+)
 from prompty.search_space.generate_prompt import PromptGenerator
 from prompty.search_space.generate_training import BestShotsSelector
 

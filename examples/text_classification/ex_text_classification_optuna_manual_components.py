@@ -15,10 +15,12 @@ from datasets import load_dataset
 from prompty.optimize.bayesian.optuna_optimizer import Optimizer, SearchSpace
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
-from prompty.prompt_components.schemas import (NLPTask,
-                                               PromptComponentCandidates,
-                                               PromptComponents,
-                                               PromptTemplate)
+from prompty.prompt_components.schemas import (
+    NLPTask,
+    PromptComponentCandidates,
+    PromptComponents,
+    PromptTemplate,
+)
 from prompty.search_space.generate_prompt import PromptGenerator
 from prompty.search_space.generate_training import BestShotsSelector
 

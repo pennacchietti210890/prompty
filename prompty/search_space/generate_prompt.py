@@ -5,8 +5,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from jinja2 import DebugUndefined, Environment, Template
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from prompty.prompt_components.schemas import (PromptComponentCandidates,
-                                               PromptComponents)
+from prompty.prompt_components.schemas import (
+    PromptComponentCandidates,
+    PromptComponents,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -16,9 +16,11 @@ from pydantic import BaseModel
 from prompty.optimize.evals.cost_aware_evaluator import CostAwareEvaluator
 from prompty.optimize.evals.dataset_evaluator import DatasetEvaluator
 from prompty.optimize.evals.evaluator import Evaluator
-from prompty.prompt_components.schemas import (PromptComponentCandidates,
-                                               PromptComponents,
-                                               PromptTemplate)
+from prompty.prompt_components.schemas import (
+    PromptComponentCandidates,
+    PromptComponents,
+    PromptTemplate,
+)
 from prompty.tracking.mlflow_tracking import MlflowTracker
 
 logger = logging.getLogger(__name__)
